@@ -1,0 +1,67 @@
+# Single configuration for both transports. The transport itself is chosen in
+# MobsfMcpApplication (--transport=stdio|http, then MCP_TRANSPORT, default http).
+spring:
+  application:
+    name: mobsf-mcp
+  main:
+    banner-mode: off
+  threads:
+    virtual:
+      enabled: true
+  ai:
+    mcp:
+      server:
+        name: mobsf-mcp
+        version: "@project.version@"
+        type: SYNC
+        protocol: STREAMABLE            # used in http mode
+        streamable-http:
+          mcp-endpoint: /mcp
+        instructions: >
+          Tools for MobSF (Mobile Security Framework). Call mobsf_health first to confirm
+          MobSF is reachable and the API key is valid, then use the scan tools.
+
+server:
+  port: ${PORT:8080}
+  address: ${BIND_ADDRESS:0.0.0.0}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+mobsf:
+  url: ${MOBSF_URL:http://localhost:8000}
+  api-key: ${MOBSF_API_KEY:}
+  upload-dir: ${UPLOAD_DIR:/data/apks}
+  report-dir: ${REPORT_DIR:/data/reports}
+  max-upload-mb: ${MOBSF_MAX_UPLOAD_MB:500}
+  scan-timeout: ${MOBSF_SCAN_TIMEOUT:20m}
+
+mobsf-mcp:
+  # Required in http mode unless allow-anonymous is true.
+  auth-token: ${MCP_AUTH_TOKEN:}
+  allow-anonymous: ${MCP_ALLOW_ANONYMOUS:false}
+  allowed-origins: ${MCP_ALLOWED_ORIGINS:}
+  # Raw adb access is off by default; when on it is still limited to read-only commands.
+  allow-adb-shell: ${ALLOW_ADB_SHELL:false}
+  # Deleting old scans is manual: prune_scans defaults to a dry run and never touches the newest scan of an app.
+  retention:
+    enabled: ${MCP_RETENTION_ENABLED:true}
+    keep-per-app: ${MCP_RETENTION_KEEP_PER_APP:5}
+    max-age-days: ${MCP_RETENTION_MAX_AGE_DAYS:0}
+  # App index: MobSF has no "list scans for this app" API, so it is built by paging /api/v1/scans.
+  scan-index:
+    cache-ttl: ${MCP_SCAN_INDEX_CACHE_TTL:60s}
+    max-scans: ${MCP_SCAN_INDEX_MAX_SCANS:2000}
+    page-size: ${MCP_SCAN_INDEX_PAGE_SIZE:100}
+
+spring.servlet.multipart:
+  max-file-size: ${MOBSF_MAX_UPLOAD_MB:500}MB
+  max-request-size: ${MOBSF_MAX_UPLOAD_MB:500}MB
+

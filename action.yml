@@ -1,0 +1,100 @@
+# SPDX-License-Identifier: MIT
+name: MobSF app scan
+description: >
+  Scan an Android or iOS app with MobSF in CI and fail the build on high-severity findings.
+  Starts MobSF and mobsf-mcp as containers, scans the app, and writes a SARIF file that can
+  be uploaded to GitHub code scanning.
+author: mobsf-mcp
+branding:
+  icon: shield
+  color: blue
+
+inputs:
+  app:
+    description: Path to the app file (.apk, .aab, .ipa or a source zip) in the workspace
+    required: true
+  max-high:
+    description: Fail when there are more high-severity findings than this; -1 disables the gate
+    required: false
+    default: "0"
+  min-score:
+    description: Fail when MobSF's security score (0-100) is below this; 0 disables the check
+    required: false
+    default: "0"
+  mcp-image:
+    description: mobsf-mcp image to run
+    required: false
+    default: sure4docker/mobsf-mcp:latest
+  mobsf-image:
+    description: MobSF image to run
+    required: false
+    default: opensecurity/mobile-security-framework-mobsf:latest
+
+outputs:
+  hash:
+    description: MobSF hash of the scanned app
+    value: ${{ steps.scan.outputs.hash }}
+  score:
+    description: MobSF security score, 0-100
+    value: ${{ steps.scan.outputs.score }}
+  high:
+    description: Number of high-severity findings
+    value: ${{ steps.scan.outputs.high }}
+  report:
+    description: Path to the normalized JSON report
+    value: ${{ steps.scan.outputs.report }}
+  sarif:
+    description: Path to the SARIF file, for upload-sarif
+    value: ${{ steps.scan.outputs.sarif }}
+
+runs:
+  using: composite
+  steps:
+    - name: Start MobSF and mobsf-mcp
+      shell: bash
+      run: |
+        set -euo pipefail
+        MOBSF_API_KEY=$(openssl rand -hex 24)
+        MCP_AUTH_TOKEN=$(openssl rand -hex 16)
+        echo "MCP_AUTH_TOKEN=$MCP_AUTH_TOKEN" >> "$GITHUB_ENV"
+        mkdir -p "$RUNNER_TEMP/apks" "$RUNNER_TEMP/reports"
+        cp "${{ inputs.app }}" "$RUNNER_TEMP/apks/"
+        docker network create mobsf-scan >/dev/null 2>&1 || true
+        docker run -d --name mobsf --network mobsf-scan -e MOBSF_API_KEY="$MOBSF_API_KEY" \
+          "${{ inputs.mobsf-image }}" >/dev/null
+        # MobSF migrates its database on first boot, so wait for it to answer
+        for i in $(seq 1 60); do
+          docker run --rm --network mobsf-scan curlimages/curl:8.10.1 -fsS -o /dev/null http://mobsf:8000/ && break
+          sleep 5
+        done
+        docker run -d --name mobsf-mcp --network mobsf-scan -p 127.0.0.1:8080:8080 \
+          -e MOBSF_URL=http://mobsf:8000 -e MOBSF_API_KEY="$MOBSF_API_KEY" \
+          -e MCP_AUTH_TOKEN="$MCP_AUTH_TOKEN" \
+          -v "$RUNNER_TEMP/apks:/data/apks" -v "$RUNNER_TEMP/reports:/data/reports" \
+          "${{ inputs.mcp-image }}" >/dev/null
+        for i in $(seq 1 40); do
+          curl -fsS -o /dev/null http://localhost:8080/actuator/health && break
+          sleep 3
+        done
+
+    - name: Scan
+      id: scan
+      shell: bash
+      env:
+        MAX_HIGH: ${{ inputs.max-high }}
+        MIN_SCORE: ${{ inputs.min-score }}
+        OUT_DIR: ${{ runner.temp }}/reports
+      run: |
+        bash "${{ github.action_path }}/scripts/ci-scan.sh" "/data/apks/$(basename '${{ inputs.app }}')"
+
+    - name: Container logs on failure
+      if: failure()
+      shell: bash
+      run: docker logs mobsf-mcp --tail 100 || true; docker logs mobsf --tail 50 || true
+
+    - name: Clean up
+      if: always()
+      shell: bash
+      run: |
+        docker rm -f mobsf mobsf-mcp >/dev/null 2>&1 || true
+        docker network rm mobsf-scan >/dev/null 2>&1 || true

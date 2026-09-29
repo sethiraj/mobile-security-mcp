@@ -1,0 +1,285 @@
+// SPDX-License-Identifier: MIT
+package io.mobsfmcp.tools;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+
+import io.mobsfmcp.client.MobsfClient;
+import io.mobsfmcp.client.MobsfException;
+import io.mobsfmcp.config.MobsfProperties;
+import tools.jackson.databind.JsonNode;
+
+import org.springframework.ai.mcp.annotation.McpTool;
+import org.springframework.ai.mcp.annotation.McpToolParam;
+import org.springframework.stereotype.Component;
+
+/**
+ * Dynamic analysis: running the app on a real Android device or emulator that MobSF
+ * controls over adb. Everything here needs {@code MOBSF_ANALYZER_IDENTIFIER} set on the
+ * MobSF container and a rooted, MobSFy-ed device; {@link #deviceStatus()} says what is
+ * missing when it is not.
+ */
+@Component
+public class DynamicAnalysisTools {
+
+	private final MobsfClient client;
+
+	private final MobsfProperties properties;
+
+	public DynamicAnalysisTools(MobsfClient client, MobsfProperties properties) {
+		this.client = client;
+		this.properties = properties;
+	}
+
+	/**
+	 * @param identifier the device MobSF is bound to, null when none is attached
+	 * @param maxSupportedSdk highest Android API level this MobSF supports for dynamic
+	 * analysis (MobSF 4.5.4 reports 30, i.e. Android 11)
+	 */
+	public record DeviceStatus(boolean deviceAvailable, String mobsfUrl, String identifier, String androidVersion,
+			Integer androidSdk, Integer maxSupportedSdk, List<String> installedPackages, String error,
+			List<String> nextSteps) {
+	}
+
+	public record DynamicRunResult(String hash, String status, String message, String nextStep) {
+	}
+
+	public record LogcatResult(String packageName, int lineCount, List<String> lines) {
+	}
+
+	public record FridaScripts(String device, List<String> scripts) {
+	}
+
+	@McpTool(name = "device_status",
+			description = "Check whether MobSF has an Android device or emulator attached for dynamic analysis. "
+					+ "Call this before any other dynamic tool; when no device is connected it lists exactly what to "
+					+ "set up.",
+			annotations = @McpTool.McpAnnotations(title = "Device status", readOnlyHint = true, destructiveHint = false,
+					idempotentHint = true, openWorldHint = false))
+	public DeviceStatus deviceStatus() {
+		JsonNode response;
+		try {
+			response = client.dynamicApps();
+		}
+		catch (MobsfException ex) {
+			return new DeviceStatus(false, properties.url(), null, null, null, null, List.of(), ex.getMessage(),
+					setupSteps());
+		}
+		// MobSF answers 200 even with no device; 'identifier' is null when none is attached
+		String identifier = response.path("identifier").isNull() ? null
+				: response.path("identifier").asString(null);
+		Integer sdk = response.path("android_sdk").isNumber() ? response.path("android_sdk").asInt() : null;
+		Integer maxSdk = response.path("android_supported").isNumber() ? response.path("android_supported").asInt()
+				: null;
+		List<String> packages = new ArrayList<>();
+		for (JsonNode app : response.path("apps")) {
+			packages.add(app.isTextual() ? app.asString("") : app.path("package").asString(app.toString()));
+		}
+
+		if (identifier == null) {
+			return new DeviceStatus(false, properties.url(), null, null, null, maxSdk, List.copyOf(packages),
+					"MobSF has no Android device attached (identifier is null).", setupSteps());
+		}
+		List<String> next = new ArrayList<>();
+		if (sdk != null && maxSdk != null && sdk > maxSdk) {
+			next.add("This device runs API " + sdk + ", but this MobSF supports up to API " + maxSdk
+					+ ". Dynamic analysis may fail; use an older image.");
+		}
+		next.add("If this device is new, run mobsfy_device once, then start_dynamic with an app hash.");
+		return new DeviceStatus(true, properties.url(), identifier,
+				response.path("android_version").asString(null), sdk, maxSdk, List.copyOf(packages), null,
+				List.copyOf(next));
+	}
+
+	private static List<String> setupSteps() {
+		return List.of("Start a rooted Android emulator or device: a Genymotion image, or an Android Studio AVD "
+				+ "started with -writable-system (not a Google Play image).",
+				"Connect it: 'adb connect <ip>:5555' (for a USB phone run 'adb tcpip 5555' first).",
+				"Point MobSF at it: set MOBSF_ANALYZER_IDENTIFIER=host.docker.internal:5555 on the MobSF container "
+						+ "(or <ip>:5555) and restart it.",
+				"Call mobsfy_device with the same identifier to install the Frida server and MobSF CA.",
+				"Then call device_status again.");
+	}
+
+	@McpTool(name = "mobsfy_device",
+			description = "Prepare a connected Android device for dynamic analysis: MobSF installs its Frida server, "
+					+ "root CA and proxy settings. Run once per device, after connecting it with adb.",
+			annotations = @McpTool.McpAnnotations(title = "Prepare device (MobSFy)", readOnlyHint = false,
+					destructiveHint = false, idempotentHint = true, openWorldHint = true))
+	public DynamicRunResult mobsfyDevice(
+			@McpToolParam(description = "Device identifier, e.g. host.docker.internal:5555 or emulator-5554") String identifier) {
+		if (identifier == null || identifier.isBlank()) {
+			throw new IllegalArgumentException(
+					"'identifier' is required, e.g. host.docker.internal:5555. Run 'adb devices' to see it.");
+		}
+		JsonNode response = client.mobsfy(identifier.trim());
+		return new DynamicRunResult(null, status(response), message(response),
+				"If this succeeded, call device_status, then start_dynamic with an app hash.");
+	}
+
+	@McpTool(name = "start_dynamic",
+			description = "Install and launch a scanned app on the connected device and begin dynamic analysis. "
+					+ "The app must already be uploaded and statically scanned (use its hash). Can take minutes.",
+			annotations = @McpTool.McpAnnotations(title = "Start dynamic analysis", readOnlyHint = false,
+					destructiveHint = false, idempotentHint = false, openWorldHint = true))
+	public DynamicRunResult startDynamic(@McpToolParam(description = "Hash of the uploaded app") String hash,
+			@McpToolParam(description = "Reinstall the app if it is already present (default false)", required = false) Boolean reinstall,
+			@McpToolParam(description = "Install the app; set false if it is already installed (default true)", required = false) Boolean install) {
+		requireHash(hash);
+		JsonNode response = client.startDynamic(hash, Boolean.TRUE.equals(reinstall), install == null || install);
+		return new DynamicRunResult(hash, status(response), message(response),
+				"Exercise the app (test_activities, start_activity, frida_instrument), then call stop_dynamic and "
+						+ "get_dynamic_report.");
+	}
+
+	@McpTool(name = "stop_dynamic",
+			description = "Stop dynamic analysis: MobSF collects logs, screenshots and app data from the device.",
+			annotations = @McpTool.McpAnnotations(title = "Stop dynamic analysis", readOnlyHint = false,
+					destructiveHint = false, idempotentHint = true, openWorldHint = true))
+	public DynamicRunResult stopDynamic(@McpToolParam(description = "Hash of the app being analysed") String hash) {
+		requireHash(hash);
+		JsonNode response = client.stopDynamic(hash);
+		return new DynamicRunResult(hash, status(response), message(response),
+				"Call get_dynamic_report, or export_report with type=dynamic or combined.");
+	}
+
+	@McpTool(name = "get_dynamic_report",
+			description = "MobSF's dynamic analysis report for an app: TLS tests, captured API calls, network traffic, "
+					+ "files written and more. Run stop_dynamic first.",
+			annotations = @McpTool.McpAnnotations(title = "Get dynamic report", readOnlyHint = true,
+					destructiveHint = false, idempotentHint = true, openWorldHint = false))
+	public JsonNode getDynamicReport(@McpToolParam(description = "Hash of the analysed app") String hash) {
+		requireHash(hash);
+		return client.dynamicReport(hash);
+	}
+
+	@McpTool(name = "run_tls_tests",
+			description = "Run MobSF's TLS/SSL tests against the running app: cleartext traffic, certificate "
+					+ "validation and certificate pinning.",
+			annotations = @McpTool.McpAnnotations(title = "TLS tests", readOnlyHint = false, destructiveHint = false,
+					idempotentHint = true, openWorldHint = true))
+	public JsonNode runTlsTests(@McpToolParam(description = "Hash of the running app") String hash) {
+		requireHash(hash);
+		return client.tlsTests(hash);
+	}
+
+	@McpTool(name = "test_activities",
+			description = "Launch the app's activities one by one and capture a screenshot of each. Set "
+					+ "exportedOnly=true to test only exported activities, which is where access-control bugs show up.",
+			annotations = @McpTool.McpAnnotations(title = "Activity tester", readOnlyHint = false,
+					destructiveHint = false, idempotentHint = true, openWorldHint = true))
+	public JsonNode testActivities(@McpToolParam(description = "Hash of the running app") String hash,
+			@McpToolParam(description = "Only exported activities (default false)", required = false) Boolean exportedOnly) {
+		requireHash(hash);
+		return client.activityTester(hash, Boolean.TRUE.equals(exportedOnly) ? "exported" : "activity");
+	}
+
+	@McpTool(name = "start_activity",
+			description = "Launch one specific activity of the running app, e.g. to reach a screen behind a login.",
+			annotations = @McpTool.McpAnnotations(title = "Start activity", readOnlyHint = false,
+					destructiveHint = false, idempotentHint = false, openWorldHint = true))
+	public JsonNode startActivity(@McpToolParam(description = "Hash of the running app") String hash,
+			@McpToolParam(description = "Activity name, e.g. .MainActivity") String activity) {
+		requireHash(hash);
+		if (activity == null || activity.isBlank()) {
+			throw new IllegalArgumentException("'activity' is required; get_report section 'files' lists activities.");
+		}
+		return client.startActivity(hash, activity.trim());
+	}
+
+	@McpTool(name = "get_logcat",
+			description = "Device log (logcat) for one package, newest lines last. Useful for spotting secrets or "
+					+ "tokens the app logs at runtime.",
+			annotations = @McpTool.McpAnnotations(title = "Get logcat", readOnlyHint = true, destructiveHint = false,
+					idempotentHint = true, openWorldHint = false))
+	public LogcatResult getLogcat(@McpToolParam(description = "Package name, e.g. com.example.app") String packageName,
+			@McpToolParam(description = "Maximum lines to return, newest kept (default 200)", required = false) Integer maxLines) {
+		if (packageName == null || packageName.isBlank()) {
+			throw new IllegalArgumentException("'packageName' is required; get it from get_scorecard or get_report.");
+		}
+		JsonNode response = client.logcat(packageName.trim());
+		List<String> lines = new ArrayList<>();
+		JsonNode logs = response.has("logcat") ? response.path("logcat") : response.path("data");
+		if (logs.isArray()) {
+			for (JsonNode line : logs) {
+				lines.add(line.asString(""));
+			}
+		}
+		else if (!logs.isMissingNode()) {
+			lines.addAll(List.of(logs.asString("").split("\\r?\\n")));
+		}
+		int limit = maxLines == null || maxLines < 1 ? 200 : maxLines;
+		List<String> tail = lines.size() <= limit ? lines : lines.subList(lines.size() - limit, lines.size());
+		return new LogcatResult(packageName, lines.size(), List.copyOf(tail));
+	}
+
+	@McpTool(name = "frida_instrument",
+			description = "Run Frida against the live app. defaultHooks and auxiliaryHooks are MobSF's built-in hook "
+					+ "sets (e.g. api_monitor, ssl_pinning_bypass, root_bypass, debugger_check_bypass); script is "
+					+ "optional custom Frida JavaScript.",
+			annotations = @McpTool.McpAnnotations(title = "Frida instrument", readOnlyHint = false,
+					destructiveHint = false, idempotentHint = false, openWorldHint = true))
+	public JsonNode fridaInstrument(@McpToolParam(description = "Hash of the running app") String hash,
+			@McpToolParam(description = "Built-in hooks, comma separated, e.g. api_monitor,ssl_pinning_bypass", required = false) String defaultHooks,
+			@McpToolParam(description = "Auxiliary hooks, comma separated", required = false) String auxiliaryHooks,
+			@McpToolParam(description = "Custom Frida JavaScript to run", required = false) String script,
+			@McpToolParam(description = "Class name to trace, for class-tracing hooks", required = false) String className) {
+		requireHash(hash);
+		return client.fridaInstrument(hash, orEmpty(defaultHooks), orEmpty(auxiliaryHooks), orEmpty(script), className);
+	}
+
+	@McpTool(name = "frida_api_monitor",
+			description = "API calls Frida captured from the running app: crypto, file, network and IPC use.",
+			annotations = @McpTool.McpAnnotations(title = "Frida API monitor", readOnlyHint = true,
+					destructiveHint = false, idempotentHint = true, openWorldHint = false))
+	public JsonNode fridaApiMonitor(@McpToolParam(description = "Hash of the running app") String hash) {
+		requireHash(hash);
+		return client.fridaApiMonitor(hash);
+	}
+
+	@McpTool(name = "frida_logs", description = "Output written by the Frida scripts currently running.",
+			annotations = @McpTool.McpAnnotations(title = "Frida logs", readOnlyHint = true, destructiveHint = false,
+					idempotentHint = true, openWorldHint = false))
+	public JsonNode fridaLogs(@McpToolParam(description = "Hash of the running app") String hash) {
+		requireHash(hash);
+		return client.fridaLogs(hash);
+	}
+
+	@McpTool(name = "list_frida_scripts",
+			description = "MobSF's built-in Frida scripts, which can be passed to frida_instrument as auxiliary hooks.",
+			annotations = @McpTool.McpAnnotations(title = "List Frida scripts", readOnlyHint = true,
+					destructiveHint = false, idempotentHint = true, openWorldHint = false))
+	public FridaScripts listFridaScripts(
+			@McpToolParam(description = "android or ios (default android)", required = false) String device) {
+		String target = device == null || device.isBlank() ? "android" : device.trim().toLowerCase(Locale.ROOT);
+		JsonNode response = client.listFridaScripts(target);
+		List<String> scripts = new ArrayList<>();
+		for (JsonNode script : response.path("files")) {
+			scripts.add(script.asString(""));
+		}
+		return new FridaScripts(target, List.copyOf(scripts));
+	}
+
+	private static String orEmpty(String value) {
+		return value == null ? "" : value;
+	}
+
+	private static String status(JsonNode response) {
+		return response.path("status").asString(response.has("error") ? "failed" : "ok");
+	}
+
+	private static String message(JsonNode response) {
+		if (response.hasNonNull("message")) {
+			return response.path("message").asString("");
+		}
+		return response.hasNonNull("error") ? response.path("error").asString("") : null;
+	}
+
+	private static void requireHash(String hash) {
+		if (hash == null || hash.isBlank()) {
+			throw new IllegalArgumentException("'hash' is required; get it from upload_app or list_scans.");
+		}
+	}
+
+}

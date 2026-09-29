@@ -1,0 +1,58 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-07-09/server.schema.json",
+  "name": "io.github.sure4docker/mobsf-mcp",
+  "description": "Scan Android and iOS apps with MobSF: upload, static analysis, dynamic analysis on a device, and findings as normalized JSON or SARIF. Independent wrapper, not affiliated with the MobSF project.",
+  "version": "1.0.0-beta.1",
+  "repository": {
+    "url": "https://github.com/sure4docker/mobsf-mcp",
+    "source": "github"
+  },
+  "packages": [
+    {
+      "registryType": "oci",
+      "registryBaseUrl": "https://docker.io",
+      "identifier": "sure4docker/mobsf-mcp",
+      "version": "1.0.0-beta.1",
+      "transport": {
+        "type": "stdio"
+      },
+      "runtimeArguments": [
+        {
+          "type": "named",
+          "name": "-v",
+          "description": "Mount the folder holding the apps to scan",
+          "value": "{apps_dir}:/data/apks",
+          "isRequired": true,
+          "variables": {
+            "apps_dir": {
+              "description": "Folder on your machine containing the .apk/.ipa files",
+              "isRequired": true,
+              "format": "filepath"
+            }
+          }
+        }
+      ],
+      "packageArguments": [
+        {
+          "type": "positional",
+          "value": "--transport=stdio",
+          "description": "Serve MCP over stdio instead of HTTP"
+        }
+      ],
+      "environmentVariables": [
+        {
+          "name": "MOBSF_URL",
+          "description": "Base URL of your MobSF instance, e.g. http://host.docker.internal:8000",
+          "isRequired": true,
+          "default": "http://host.docker.internal:8000"
+        },
+        {
+          "name": "MOBSF_API_KEY",
+          "description": "MobSF REST API key, from the MobSF web UI",
+          "isRequired": true,
+          "isSecret": true
+        }
+      ]
+    }
+  ]
+}

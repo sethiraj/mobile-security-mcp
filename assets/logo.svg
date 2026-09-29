@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="mobsf-mcp logo" width="512" height="512">
+  <title>mobsf-mcp</title>
+  <desc>A shield over a phone outline, marked with a scan line and a plug, for an MCP server that scans mobile apps.</desc>
+  <defs>
+    <linearGradient id="shield" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3fa9f5"/>
+      <stop offset="1" stop-color="#1b5e9c"/>
+    </linearGradient>
+    <linearGradient id="scan" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#7ef2c2" stop-opacity="0"/>
+      <stop offset="0.5" stop-color="#7ef2c2"/>
+      <stop offset="1" stop-color="#7ef2c2" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- shield -->
+  <path d="M256 32 448 96v160c0 112-80 186-192 224C144 442 64 368 64 256V96Z" fill="url(#shield)"/>
+  <path d="M256 32 448 96v160c0 112-80 186-192 224C144 442 64 368 64 256V96Z" fill="none" stroke="#0d3a63" stroke-width="12"/>
+
+  <!-- phone -->
+  <rect x="176" y="126" width="160" height="264" rx="26" fill="#f7fbff" stroke="#0d3a63" stroke-width="12"/>
+  <rect x="228" y="142" width="56" height="10" rx="5" fill="#0d3a63" opacity="0.5"/>
+  <circle cx="256" cy="372" r="11" fill="#0d3a63" opacity="0.5"/>
+
+  <!-- scan line across the screen -->
+  <rect x="176" y="238" width="160" height="26" fill="url(#scan)"/>
+  <line x1="176" y1="251" x2="336" y2="251" stroke="#18c98a" stroke-width="7"/>
+
+  <!-- findings on the screen -->
+  <g fill="#0d3a63" opacity="0.65">
+    <rect x="204" y="182" width="104" height="12" rx="6"/>
+    <rect x="204" y="206" width="72" height="12" rx="6"/>
+    <rect x="204" y="290" width="104" height="12" rx="6"/>
+    <rect x="204" y="314" width="56" height="12" rx="6"/>
+  </g>
+
+  <!-- MCP plug: the connector into the phone -->
+  <g stroke="#0d3a63" stroke-width="14" stroke-linecap="round" fill="none">
+    <path d="M256 390v52"/>
+    <path d="M226 442h60"/>
+  </g>
+</svg>

@@ -1,0 +1,13 @@
+target/
+*.log
+.env
+.idea/
+*.iml
+.vscode/
+.DS_Store
+
+# local test inputs/outputs mounted into containers
+apks/*
+!apks/.gitkeep
+reports/*
+!reports/.gitkeep

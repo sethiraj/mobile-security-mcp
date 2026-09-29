@@ -1,0 +1,64 @@
+# SPDX-License-Identifier: MIT
+# Official MobSF + mobsf-mcp, wired together. Copy .env.example to .env first.
+services:
+  # MobSF's home directory does not exist in the image, so a plain named volume would be
+  # created root-owned and MobSF (uid 9901) could not write to it. This one-shot service
+  # fixes the ownership before MobSF starts.
+  mobsf-init:
+    image: busybox:1.36
+    container_name: mobsf-init
+    command: sh -c "mkdir -p /mobsf-home && chown -R 9901:9901 /mobsf-home"
+    volumes: ["mobsf-data:/mobsf-home"]
+
+  mobsf:
+    image: opensecurity/mobile-security-framework-mobsf:${MOBSF_TAG:-latest}
+    container_name: mobsf
+    ports: ["8000:8000"]                       # MobSF web UI: http://localhost:8000 (mobsf/mobsf)
+    environment:
+      MOBSF_API_KEY: ${MOBSF_API_KEY}          # pins the REST key so both containers share it
+      MOBSF_ASYNC_ANALYSIS: "0"                # this server requires synchronous scans
+      MOBSF_ANALYZER_IDENTIFIER: ${MOBSF_ANALYZER_IDENTIFIER:-}   # e.g. host.docker.internal:5555 (M6, dynamic analysis)
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    volumes: ["mobsf-data:/home/mobsf/.MobSF"]   # scans survive `docker compose down` (add -v to wipe)
+    depends_on:
+      mobsf-init: { condition: service_completed_successfully }
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8000/ -o /dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 90s
+
+  mobsf-mcp:
+    image: ${MCP_IMAGE:-sure4docker/mobsf-mcp:latest}
+    build: .
+    container_name: mobsf-mcp
+    depends_on:
+      mobsf: { condition: service_healthy }    # start only once MobSF answers
+    ports: ["127.0.0.1:8080:8080"]             # MCP endpoint: http://localhost:8080/mcp
+    environment:
+      MCP_TRANSPORT: ${MCP_TRANSPORT:-http}
+      MOBSF_URL: http://mobsf:8000             # compose service name, not localhost
+      MOBSF_API_KEY: ${MOBSF_API_KEY}
+      MCP_AUTH_TOKEN: ${MCP_AUTH_TOKEN}
+      MCP_SCAN_INDEX_CACHE_TTL: ${MCP_SCAN_INDEX_CACHE_TTL:-60s}
+      MCP_SCAN_INDEX_MAX_SCANS: ${MCP_SCAN_INDEX_MAX_SCANS:-2000}
+      MCP_RETENTION_ENABLED: ${MCP_RETENTION_ENABLED:-true}
+      MCP_RETENTION_KEEP_PER_APP: ${MCP_RETENTION_KEEP_PER_APP:-5}
+    volumes:
+      - ./apks:/data/apks                      # put test apps here
+      - ./reports:/data/reports                # PDF/JSON reports land here
+
+  # Linux + /dev/kvm only; used from M6. Start with: docker compose --profile emulator up
+  emulator:
+    profiles: ["emulator"]
+    image: budtmo/docker-android:emulator_11.0
+    container_name: mobsf-emulator
+    devices: ["/dev/kvm"]
+    environment:
+      EMULATOR_DEVICE: "Samsung Galaxy S10"
+      WEB_VNC: "true"
+    ports: ["6080:6080", "5555:5555"]
+
+volumes:
+  mobsf-data: {}

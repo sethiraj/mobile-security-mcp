@@ -1,0 +1,46 @@
+# Entry for the Docker MCP Catalog. To submit, copy this to
+# servers/mobsf-mcp/server.yaml in a fork of https://github.com/docker/mcp-registry
+# and open a pull request. Docker then builds and signs the image itself.
+name: mobsf-mcp
+image: sure4docker/mobsf-mcp
+type: server
+meta:
+  category: security
+  tags:
+    - security
+    - mobile
+    - android
+    - ios
+    - sast
+about:
+  title: MobSF
+  description: >
+    Scan Android and iOS apps with MobSF (Mobile Security Framework): upload an app, run
+    static analysis, drive dynamic analysis on a connected device, and read the findings as
+    normalized JSON or SARIF 2.1.0. An independent MCP wrapper that talks to MobSF over its
+    REST API; not affiliated with the MobSF project, which runs as its own container under
+    its own licence (GPL-3.0).
+  icon: https://raw.githubusercontent.com/sure4docker/mobsf-mcp/main/assets/logo-256.png
+source:
+  project: https://github.com/sure4docker/mobsf-mcp
+run:
+  command:
+    - --transport=stdio
+  volumes:
+    - "{{mobsf.apps_dir}}:/data/apks"
+config:
+  - name: mobsf
+    description: Connection to your MobSF instance
+    type: object
+    properties:
+      url:
+        type: string
+        description: Base URL of MobSF, e.g. http://host.docker.internal:8000
+        env: MOBSF_URL
+      apps_dir:
+        type: string
+        description: Folder containing the apps to scan
+  secrets:
+    - name: mobsf.api_key
+      env: MOBSF_API_KEY
+      example: 1a2b3c4d5e6f...

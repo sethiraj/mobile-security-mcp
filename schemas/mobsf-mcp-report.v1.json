@@ -1,0 +1,276 @@
+{
+  "$schema" : "https://json-schema.org/draft/2020-12/schema",
+  "$defs" : {
+    "Map_String.Integer_" : {
+      "type" : "object"
+    }
+  },
+  "type" : "object",
+  "properties" : {
+    "app" : {
+      "type" : "object",
+      "properties" : {
+        "appName" : {
+          "type" : "string"
+        },
+        "fileName" : {
+          "type" : "string"
+        },
+        "hash" : {
+          "type" : "string"
+        },
+        "minSdk" : {
+          "type" : "string"
+        },
+        "packageName" : {
+          "type" : "string"
+        },
+        "platform" : {
+          "type" : "string"
+        },
+        "scanType" : {
+          "type" : "string"
+        },
+        "sha256" : {
+          "type" : "string"
+        },
+        "size" : {
+          "type" : "string"
+        },
+        "targetSdk" : {
+          "type" : "string"
+        },
+        "version" : {
+          "type" : "string"
+        },
+        "versionCode" : {
+          "type" : "string"
+        }
+      }
+    },
+    "dynamicAnalysis" : {
+      "type" : "object",
+      "properties" : {
+        "apiMonitor" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        },
+        "fileSystem" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        },
+        "httpTraffic" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        },
+        "logcatHighlights" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        },
+        "screenshots" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        },
+        "tlsTests" : {
+          "type" : "object"
+        }
+      }
+    },
+    "findings" : {
+      "type" : "array",
+      "items" : {
+        "type" : "object",
+        "properties" : {
+          "category" : {
+            "type" : "string"
+          },
+          "description" : {
+            "type" : "string"
+          },
+          "evidence" : {
+            "type" : "array",
+            "items" : {
+              "type" : "object",
+              "properties" : {
+                "file" : {
+                  "type" : "string"
+                },
+                "line" : {
+                  "type" : "string"
+                },
+                "snippet" : {
+                  "type" : "string"
+                }
+              }
+            }
+          },
+          "id" : {
+            "type" : "string"
+          },
+          "remediation" : {
+            "type" : "string"
+          },
+          "severity" : {
+            "type" : "string"
+          },
+          "source" : {
+            "type" : "string"
+          },
+          "standards" : {
+            "type" : "object",
+            "properties" : {
+              "cvss" : {
+                "type" : "number"
+              },
+              "cwe" : {
+                "type" : "string"
+              },
+              "masvs" : {
+                "type" : "string"
+              },
+              "owaspMobile" : {
+                "type" : "string"
+              },
+              "reference" : {
+                "type" : "string"
+              }
+            }
+          },
+          "title" : {
+            "type" : "string"
+          }
+        }
+      }
+    },
+    "generatedAt" : {
+      "type" : "string",
+      "format" : "date-time"
+    },
+    "rawRef" : {
+      "type" : "object",
+      "properties" : {
+        "dynamicPath" : {
+          "type" : "string"
+        },
+        "staticPath" : {
+          "type" : "string"
+        }
+      }
+    },
+    "scanType" : {
+      "type" : "string",
+      "enum" : [ "static", "dynamic", "combined" ]
+    },
+    "schemaVersion" : {
+      "type" : "string"
+    },
+    "staticAnalysis" : {
+      "type" : "object",
+      "properties" : {
+        "certificateInfo" : {
+          "type" : "string"
+        },
+        "domains" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        },
+        "emails" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        },
+        "exportedComponentCounts" : {
+          "$ref" : "#/$defs/Map_String.Integer_"
+        },
+        "files" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        },
+        "permissions" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "properties" : {
+              "description" : {
+                "type" : "string"
+              },
+              "name" : {
+                "type" : "string"
+              },
+              "status" : {
+                "type" : "string"
+              }
+            }
+          }
+        },
+        "secrets" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        },
+        "trackers" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        },
+        "urls" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        }
+      }
+    },
+    "summary" : {
+      "type" : "object",
+      "properties" : {
+        "averageCvss" : {
+          "type" : "number"
+        },
+        "findingCounts" : {
+          "$ref" : "#/$defs/Map_String.Integer_"
+        },
+        "securityScore" : {
+          "type" : "integer"
+        },
+        "trackersChecked" : {
+          "type" : "integer"
+        },
+        "trackersDetected" : {
+          "type" : "integer"
+        }
+      }
+    },
+    "tool" : {
+      "type" : "object",
+      "properties" : {
+        "mobsfVersion" : {
+          "type" : "string"
+        },
+        "name" : {
+          "type" : "string"
+        },
+        "version" : {
+          "type" : "string"
+        }
+      }
+    }
+  }
+}
