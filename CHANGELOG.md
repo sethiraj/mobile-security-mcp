@@ -16,6 +16,15 @@ All notable changes to this project are documented here. The format follows
 - Missing values from MobSF (empty strings, JSON nulls and absent fields alike) are normalized to `null`, so agents can tell "not provided" from a real value and apps with no package name are never grouped together.
 - `scan_app` fails with instructions when MobSF runs in async mode (`MOBSF_ASYNC_ANALYSIS=1`), which this server does not support; compose pins it to `0`.
 
+## [1.0.0-beta.2] - 2026-10-12
+
+### Added
+- `suppress_finding`, `unsuppress_finding` and `list_suppressions`: dismiss a reviewed finding so it stops failing scans and CI gates. MobSF suppresses per package name, so a suppression carries to later scans of the same app, and the tools say so.
+- `view_source`: read the file behind a finding (from its `evidence.file`), so an agent can propose a fix instead of only reporting one. Long files are truncated rather than flooding the caller.
+
+### Fixed
+- `suppress_finding` rejects a rule id that no finding in the scan uses, listing the real ones. MobSF accepts any id and reports success, so a typo would silently suppress nothing and the finding would reappear in every later report.
+
 ## [1.0.0-beta.1] - 2026-09-26
 
 First beta, not published. Static analysis, JSON reports and the hardened HTTP mode have been
@@ -56,5 +65,6 @@ more features are planned, so this is a beta rather than 1.0.0.
   dynamic report mapping.
 - Further features, to be decided.
 
-[Unreleased]: https://github.com/sure4docker/mobsf-mcp/compare/v1.0.0-beta.1...HEAD
+[Unreleased]: https://github.com/sure4docker/mobsf-mcp/compare/v1.0.0-beta.2...HEAD
+[1.0.0-beta.2]: https://github.com/sure4docker/mobsf-mcp/releases/tag/v1.0.0-beta.2
 [1.0.0-beta.1]: https://github.com/sure4docker/mobsf-mcp/releases/tag/v1.0.0-beta.1

@@ -13,7 +13,7 @@
 
     <groupId>io.mobsfmcp</groupId>
     <artifactId>mobsf-mcp</artifactId>
-    <version>1.0.0-beta.1</version>
+    <version>1.0.0-beta.2</version>
     <name>mobsf-mcp</name>
     <description>MCP server for MobSF (Mobile Security Framework) - stdio and Streamable HTTP</description>
 

@@ -188,6 +188,46 @@ public class MobsfClient {
 					.body(byte[].class));
 	}
 
+	// --- Findings: suppression and source ---
+
+	/**
+	 * {@code POST /api/v1/suppress_by_rule}: hides a rule's findings for this app.
+	 * <p>
+	 * MobSF stores suppressions per <em>package name</em>, not per scan, so this also
+	 * applies to later scans of the same app. {@code type} is {@code code} or
+	 * {@code manifest}.
+	 */
+	public JsonNode suppressByRule(String hash, String rule, String type) {
+		return postForm("suppress rule " + rule, "/api/v1/suppress_by_rule",
+				form("hash", hash, "rule", rule, "type", type));
+	}
+
+	/** {@code POST /api/v1/suppress_by_files}: hides a code rule's findings in the files it matched. */
+	public JsonNode suppressByFiles(String hash, String rule) {
+		return postForm("suppress rule " + rule + " by file", "/api/v1/suppress_by_files",
+				form("hash", hash, "rule", rule));
+	}
+
+	/** {@code POST /api/v1/list_suppressions}: the suppressions in force for this app. */
+	public JsonNode listSuppressions(String hash) {
+		return postForm("list suppressions for " + hash, "/api/v1/list_suppressions", form("hash", hash));
+	}
+
+	/** {@code POST /api/v1/delete_suppression}: {@code kind} is {@code rule} or {@code file}. */
+	public JsonNode deleteSuppression(String hash, String rule, String type, String kind) {
+		return postForm("remove the suppression of " + rule, "/api/v1/delete_suppression",
+				form("hash", hash, "rule", rule, "type", type, "kind", kind));
+	}
+
+	/**
+	 * {@code POST /api/v1/view_source}: the source of one file from a scan.
+	 * {@code type} is one of eclipse, studio, apk, java, smali or xml for Android;
+	 * anything else is treated as iOS.
+	 */
+	public JsonNode viewSource(String hash, String file, String type) {
+		return postForm("read " + file, "/api/v1/view_source", form("hash", hash, "file", file, "type", type));
+	}
+
 	// --- Dynamic analysis (needs an Android device or emulator attached to MobSF) ---
 
 	/** {@code GET /api/v1/dynamic/get_apps}: apps available on the connected device (GET, unlike the rest). */

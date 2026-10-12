@@ -6,7 +6,7 @@
 
 <p align="center">
   <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-yellow.svg"></a>
-  <img alt="Version" src="https://img.shields.io/badge/version-1.0.0--beta.1-blue.svg">
+  <img alt="Version" src="https://img.shields.io/badge/version-1.0.0--beta.2-blue.svg">
   <img alt="Java 21" src="https://img.shields.io/badge/Java-21-orange.svg">
   <img alt="Spring AI" src="https://img.shields.io/badge/Spring%20AI-2.0-6db33f.svg">
   <img alt="MCP" src="https://img.shields.io/badge/MCP-stdio%20%2B%20Streamable%20HTTP-6f42c1.svg">
@@ -101,6 +101,8 @@ Without Docker: `./mvnw package -DskipTests` then `java -jar target/mobsf-mcp.ja
 | `export_report` | Writes that JSON, MobSF's raw JSON, or **SARIF 2.1.0** into the report directory |
 | `compare_scans` | Score difference and differing high severity findings between two scans, by hash |
 | `compare_app_versions` | The same comparison by app and version, defaulting to the two most recent scans — "did this release get better or worse?" |
+| `view_source` | Reads a source file behind a finding, so an agent can propose a fix rather than just report |
+| `suppress_finding` / `unsuppress_finding` / `list_suppressions` | Dismiss a reviewed finding so it stops failing scans and CI gates; rule ids are checked against the scan first |
 | `delete_scan` | Deletes one scan (marked destructive) |
 | `prune_scans` | Reclaims MobSF disk by deleting old scans: **dry run by default**, never deletes an app's newest scan, and keeps exported reports |
 
