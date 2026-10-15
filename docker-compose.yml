@@ -35,7 +35,7 @@ services:
     container_name: mobsf-mcp
     depends_on:
       mobsf: { condition: service_healthy }    # start only once MobSF answers
-    ports: ["127.0.0.1:8080:8080"]             # MCP endpoint: http://localhost:8080/mcp
+    ports: ["127.0.0.1:${MCP_HOST_PORT:-8080}:8080"]   # MCP endpoint; override MCP_HOST_PORT if 8080 is taken
     environment:
       MCP_TRANSPORT: ${MCP_TRANSPORT:-http}
       MOBSF_URL: http://mobsf:8000             # compose service name, not localhost

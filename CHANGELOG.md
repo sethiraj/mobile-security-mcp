@@ -12,6 +12,8 @@ All notable changes to this project are documented here. The format follows
 - `compare_app_versions`: compares two releases of one app (defaulting to the two most recent scans), reporting the score delta and which high-severity findings differ.
 
 ### Changed
+- Dynamic analysis is now verified against a real device: Selendroid on an API 30 emulator, driven by MobSF in Docker. `DynamicReportMapper` was corrected against the real report — `tls_tests` is a flat object of booleans (so a passed check is reported as `secure`, not `info`), screenshots come from `activity_tester`, `urls` are plain strings, and observed `domains` are now kept.
+- `docker-compose.yml` takes `MCP_HOST_PORT` so the server still starts when another container holds 8080.
 - `search_scan` now returns a compact list of matches instead of MobSF's first match as a full report, and reports no matches as `matchCount: 0` rather than a 404.
 - Missing values from MobSF (empty strings, JSON nulls and absent fields alike) are normalized to `null`, so agents can tell "not provided" from a real value and apps with no package name are never grouped together.
 - `scan_app` fails with instructions when MobSF runs in async mode (`MOBSF_ASYNC_ANALYSIS=1`), which this server does not support; compose pins it to `0`.

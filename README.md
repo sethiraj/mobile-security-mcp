@@ -19,11 +19,10 @@ An MCP ([Model Context Protocol](https://modelcontextprotocol.io)) server for [M
 > report MobSF bugs to [the MobSF project](https://github.com/MobSF/Mobile-Security-Framework-MobSF/issues)
 > and anything about this server here.
 
-> Status: **1.0.0-beta.1 — beta, not released.** Static analysis, JSON and SARIF reports, the
-> app index, version comparison, retention and the hardened HTTP mode have all been run end to
-> end against the official MobSF image. Still open before 1.0.0: a real run of the
-> dynamic-analysis tools against an Android emulator (AVD).
-> See [MILESTONES.md](MILESTONES.md) and [CHANGELOG.md](CHANGELOG.md).
+> Status: **1.0.0-beta.2 — beta.** Everything is now verified end to end against the official
+> MobSF image: static analysis, JSON and SARIF reports, the app index, version comparison,
+> suppression, retention, the hardened HTTP mode — and, as of this release, **dynamic analysis
+> on a real Android emulator**. See [MILESTONES.md](MILESTONES.md) and [CHANGELOG.md](CHANGELOG.md).
 >
 > Only analyze apps you are authorized to test.
 

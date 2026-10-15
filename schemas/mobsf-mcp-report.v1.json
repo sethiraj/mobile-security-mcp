@@ -57,6 +57,12 @@
             "type" : "string"
           }
         },
+        "domains" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        },
         "fileSystem" : {
           "type" : "array",
           "items" : {

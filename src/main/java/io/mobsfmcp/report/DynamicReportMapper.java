@@ -41,7 +41,7 @@ public class DynamicReportMapper {
 
 		ScanReport.DynamicDetails details = new ScanReport.DynamicDetails(tlsTests(report), strings(report.path("apimon")),
 				strings(report.path("urls")), fileArtifacts(report), strings(report.path("droidmon")),
-				strings(report.path("screenshots")));
+				screenshots(report), strings(report.path("domains")));
 
 		return new ScanReport(ScanReport.SCHEMA_VERSION, ScanReport.ScanType.DYNAMIC, Instant.now(),
 				new ScanReport.ToolInfo("mobsf-mcp", serverVersion, text(report, "version")),
@@ -78,18 +78,42 @@ public class DynamicReportMapper {
 			}
 			return;
 		}
+		// A real run returns a flat object of booleans, each named for the problem it tests:
+		// {"tls_misconfigured":false,"no_tls_pin_or_transparency":false,
+		//  "pin_or_transparency_bypassed":false,"has_cleartext":true}
+		// true means the problem is present, so false is a pass, not an unknown.
 		tls.propertyStream().forEach(entry -> {
 			JsonNode value = entry.getValue();
-			// MobSF reports either a boolean-ish flag or an object with status/description
 			boolean failed = value.isBoolean() ? value.asBoolean()
 					: "high".equalsIgnoreCase(value.path("status").asString(""))
 							|| "failed".equalsIgnoreCase(value.path("status").asString(""));
-			findings.add(new Finding("dynamic.tls." + entry.getKey(), "dynamic", "tls", failed ? "high" : "info",
-					entry.getKey().replace('_', ' '),
-					value.isObject() ? value.path("description").asString("") : value.asString(""), List.of(), null,
-					null));
+			findings.add(new Finding("dynamic.tls." + entry.getKey(), "dynamic", "tls", failed ? "high" : "secure",
+					TLS_TITLES.getOrDefault(entry.getKey(), entry.getKey().replace('_', ' ')),
+					value.isObject() ? value.path("description").asString("")
+							: failed ? TLS_FAILED.getOrDefault(entry.getKey(), "The app failed this TLS check.")
+									: "The app passed this TLS check.",
+					List.of(), null, failed ? TLS_FIXES.get(entry.getKey()) : null));
 		});
 	}
+
+	/** MobSF names these after the problem; spelling them out keeps a report readable. */
+	private static final Map<String, String> TLS_TITLES = Map.of(
+			"tls_misconfigured", "TLS is misconfigured",
+			"no_tls_pin_or_transparency", "No certificate pinning or transparency",
+			"pin_or_transparency_bypassed", "Certificate pinning was bypassed",
+			"has_cleartext", "App sends cleartext (unencrypted) traffic");
+
+	private static final Map<String, String> TLS_FAILED = Map.of(
+			"tls_misconfigured", "The app accepts TLS connections it should reject.",
+			"no_tls_pin_or_transparency", "The app does not pin certificates or use certificate transparency.",
+			"pin_or_transparency_bypassed", "Pinning was bypassed at runtime, so traffic can be intercepted.",
+			"has_cleartext", "Traffic was observed in cleartext and can be read or modified in transit.");
+
+	private static final Map<String, String> TLS_FIXES = Map.of(
+			"tls_misconfigured", "Reject invalid certificates; do not disable hostname verification.",
+			"no_tls_pin_or_transparency", "Pin the certificates of the hosts the app talks to.",
+			"pin_or_transparency_bypassed", "Pinning alone will not stop a rooted device; treat the client as untrusted.",
+			"has_cleartext", "Use HTTPS everywhere and set android:usesCleartextTraffic=false.");
 
 	private void addClipboardFindings(JsonNode report, List<Finding> findings) {
 		List<String> clipboard = strings(report.path("clipboard"));
@@ -104,6 +128,21 @@ public class DynamicReportMapper {
 		Map<String, Object> tls = new LinkedHashMap<>();
 		report.path("tls_tests").propertyStream().forEach(entry -> tls.put(entry.getKey(), entry.getValue().toString()));
 		return Map.copyOf(tls);
+	}
+
+	/**
+	 * Screenshots taken during the run. The {@code screenshots} array is empty in practice;
+	 * the activity tester's images arrive as {@code {"act-1.png": ".HomeScreenActivity"}},
+	 * so the file name and the activity it shows are both worth keeping.
+	 */
+	private static List<String> screenshots(JsonNode report) {
+		Set<String> images = new LinkedHashSet<>(strings(report.path("screenshots")));
+		for (String key : List.of("activity_tester", "exported_activity_tester")) {
+			report.path(key)
+				.propertyStream()
+				.forEach(entry -> images.add(entry.getKey() + " (" + entry.getValue().asString("") + ")"));
+		}
+		return List.copyOf(images);
 	}
 
 	private static List<String> fileArtifacts(JsonNode report) {

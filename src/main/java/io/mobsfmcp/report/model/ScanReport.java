@@ -68,7 +68,7 @@ public record ScanReport(String schemaVersion, ScanType scanType, Instant genera
 	/** Filled from M6 onwards; null in static-only reports. */
 	@JsonInclude(JsonInclude.Include.NON_NULL)
 	public record DynamicDetails(Map<String, Object> tlsTests, List<String> apiMonitor, List<String> httpTraffic,
-			List<String> fileSystem, List<String> logcatHighlights, List<String> screenshots) {
+			List<String> fileSystem, List<String> logcatHighlights, List<String> screenshots, List<String> domains) {
 	}
 
 	@JsonInclude(JsonInclude.Include.NON_NULL)

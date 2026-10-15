@@ -17,7 +17,7 @@ Each milestone produces something you can run and has exit criteria you can chec
 | M9a | App index, `find_app`, `list_app_scans`, fixed `search_scan` | M | M1 | `v1.0.0` | ✅ done, verified against real MobSF |
 | M9b | `compare_app_versions` | S | M9a | `v1.0.0` | ✅ done |
 | M9c | Retention / `prune_scans` | M | M9a | `v1.0.0` | ✅ done, verified live (dry run, both refusals, real delete, reports kept) |
-| M9d | AVD dynamic-analysis run (Selendroid) | M | M6 | `v1.0.0` | ⏸️ deferred — no suitable emulator (the only AVD is API 36 with a Play Store image; MobSF needs ≤ API 30 and a rootable one) |
+| M9d | AVD dynamic-analysis run (Selendroid) | M | M6 | `v1.0.0` | ✅ done — verified on an API 30 AVD; the mapper was corrected against the real report |
 
 ---
 
@@ -147,7 +147,19 @@ Manual, dry run by default. A real run must state a rule *and* pass back the has
 run listed; the newest scan of every app identity is never selectable; unparseable timestamps
 never expire; exported reports are kept. Verified live end to end.
 
-### M9d: the AVD run — still open
+### M9d: the AVD run — done
+Verified end to end: Selendroid on an API 30 AOSP emulator, driven by MobSF in Docker.
+`mobsfy_device` → `start_dynamic` → `test_activities` → `frida_instrument` →
+`run_tls_tests` → `stop_dynamic` → `export_report` for both `dynamic` and `combined`, with
+both validating against the published schema. The real report is kept as a test fixture at
+`src/test/resources/mobsf/dynamic-scan-report.json`, and `DynamicReportMapper` was corrected
+against it — `tls_tests` is a flat object of booleans, screenshots live in `activity_tester`,
+and `urls` are plain strings.
+
+The emulator recipe that works is **`avbctl disable-verification`**, not `adb disable-verity`,
+which leaves an API 30 image unbootable. See `docs/decisions.md`.
+
+### M9d: the original plan — superseded
 Every dynamic endpoint and parameter was read from a running MobSF 4.5.4, but no device has
 ever been attached, so `DynamicReportMapper` has not seen real dynamic output. Expect to adjust
 it and to capture a real `dynamic/report_json` as a test fixture.

@@ -15,6 +15,37 @@ mobsf-mcp  ──REST──>  MobSF container  ──adb over TCP──>  Androi
 
 Recommended: **Genymotion Desktop** (personal use is free, rooted by default, easy on Windows and macOS), or an **Android Studio AVD** started with `-writable-system`.
 
+## The recipe that actually works (verified on API 30, emulator 36.3.10)
+
+MobSF needs a writable `/system` to install its Frida server and CA. Two things cost hours
+here, so they are worth stating plainly:
+
+**Use `avbctl`, not `disable-verity`.** `adb disable-verity` leaves an API 30 image
+**unbootable** — adbd never comes back after the reboot. This sequence works:
+
+```bash
+emulator -avd <name> -writable-system -no-snapshot -no-audio -no-boot-anim -gpu swiftshader_indirect
+adb root
+adb shell avbctl disable-verification
+adb reboot
+# wait for sys.boot_completed, then:
+adb root && adb remount
+adb shell 'touch /system/x && echo WRITABLE'    # verify: "remount succeeded" alone lies
+```
+
+`adb remount` reports success even when `/` is still a read-only device-mapper device, so
+always confirm with a real write.
+
+**Docker cannot reach the emulator unaided.** The emulator binds adb to `127.0.0.1`, and
+`host.docker.internal` resolves to IPv6 inside Docker Desktop, so forward a dual-stack port
+to it and point MobSF at that:
+
+```bash
+node -e "const n=require('net');n.createServer(c=>{const u=n.connect(5555,'127.0.0.1');c.pipe(u);u.pipe(c);}).listen(5556)" &
+# then set on the MobSF container:
+MOBSF_ANALYZER_IDENTIFIER=host.docker.internal:5556
+```
+
 ## Windows or macOS host (Docker Desktop)
 The MobSF container cannot see `localhost` on your machine, so the emulator is reached through `host.docker.internal`.
 

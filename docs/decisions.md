@@ -106,3 +106,17 @@ Every endpoint and parameter name below was read from the running MobSF 4.5.4 co
 - **Suppression is per package name, not per scan**, so it applies to future scans of the same app. That is the useful behaviour for a release pipeline, but it means a suppression outlives the scan it was created from — the tool descriptions state this.
 - MobSF only suppresses `code` and `manifest` findings; there is no suppression for network, certificate or tracker findings.
 - Selendroid's APK scan has **no code findings at all** (`code_analysis.findings` is empty), so `view_source` was verified against `AndroidManifest.xml` with `type=xml` instead — 33 lines of real manifest.
+
+## M9d findings (the AVD run that finally worked)
+Dynamic analysis has now been verified end to end against a real emulator: Selendroid on an API 30 AOSP AVD, driven by MobSF 4.5.4 in Docker.
+
+- **`adb disable-verity` makes an API 30 image unbootable on emulator 36.3.10.** Reproduced three times: verity is disabled, the device reboots, and adbd never returns — the emulator's ports listen but refuse connections. **`adb shell avbctl disable-verification` is the one that works**, and after a single reboot `/system` is genuinely writable. This is the difference between a working dynamic setup and hours of dead ends; the MobSF docs recommend the `disable-verity` route.
+- **`adb remount` reports "remount succeeded" while `/` stays read-only** when verity is still on (`/` is a device-mapper device). The success message cannot be trusted — test with an actual write.
+- **Docker cannot reach the emulator without help.** The emulator binds adb to `127.0.0.1`, and `host.docker.internal` resolves to an IPv6 address inside Docker Desktop, so a forwarder must listen dual-stack. `node` listening on `:5556` and forwarding to `127.0.0.1:5555` is enough; `MOBSF_ANALYZER_IDENTIFIER=host.docker.internal:5556` then works.
+- **The dynamic report's real shapes differ from what MobSF's source suggested**, which is exactly why this run mattered:
+  - `tls_tests` is a **flat object of booleans** (`has_cleartext`, `tls_misconfigured`, `no_tls_pin_or_transparency`, `pin_or_transparency_bypassed`), each named for the problem, so `true` means the problem is present and `false` is a pass — now mapped to `high` and `secure` respectively, rather than `high`/`info`.
+  - `urls` are plain strings; `domains` is an object keyed by domain carrying reputation and geolocation metadata.
+  - **Screenshots are not in `screenshots`** (empty in a real run) but in `activity_tester`, keyed by image file and valued by the activity shown.
+  - `apimon` and `droidmon` come back as empty objects when nothing was captured.
+- Selendroid's combined report: 12 findings, 8 static and 4 dynamic, 6 high — the dynamic one being real cleartext traffic observed at runtime, which static analysis flagged only as a manifest setting.
+- A container from an unrelated project held port 8080, so `docker-compose.yml` now takes `MCP_HOST_PORT` (default 8080) rather than failing to start.
