@@ -115,6 +115,46 @@ Instrument before exercising the app in any case — `frida_instrument` attaches
 running process, and `test_activities` cycles the app through every activity, which
 replaces it.
 
+### Frida needs its server on the device, and MobSF may never put it there
+
+MobSF pushes a frida-server binary to `/system/fd_server` during `mobsfy_device` and runs
+it from there. If that push never happened, every Frida call fails while still reporting
+`ok`.
+
+The download is gated behind MobSF's own reachability check, which probes
+**google.com and baidu.com**. On a network that blocks those but allows GitHub, the check
+says "no internet" and MobSF never attempts the GitHub download that would have
+succeeded. It logs one line and carries on:
+
+```text
+Android OS architecture identified as x86_64
+Cannot download frida-server binary. You will need
+frida-server-17.18.0-android-x86_64 in /home/mobsf/.MobSF/downloads/
+MobSFying Completed!            <- reported success anyway
+```
+
+Confirm which situation you are in:
+
+```bash
+docker exec mobsf ls -la /home/mobsf/.MobSF/downloads/ | grep frida-server
+adb shell ls -la /system/fd_server
+```
+
+To fix it, put the binary in the download directory yourself. MobSF skips the download
+whenever the file is already there, so this needs no network access from MobSF at all.
+Download `frida-server-<version>-android-<arch>.xz` from the
+[frida releases](https://github.com/frida/frida/releases), decompress it, and copy it in
+under the exact name MobSF's log asks for — the version must match the `frida` Python
+package inside the container (`docker exec mobsf pip show frida`):
+
+```bash
+docker cp frida-server-17.18.0-android-x86_64 mobsf:/home/mobsf/.MobSF/downloads/
+docker exec mobsf chmod 755 /home/mobsf/.MobSF/downloads/frida-server-17.18.0-android-x86_64
+```
+
+Then call `mobsfy_device` again and check that `/system/fd_server` exists. `/system` must
+be writable for the push to land, so do this after the `avbctl` step above.
+
 **Read the log before you stop.** MobSF attaches adb for the duration of the session, so
 `get_logcat` after `stop_dynamic` has no device to read and reports
 `- waiting for device -`.
@@ -125,6 +165,7 @@ replaces it.
 | `device_status` reports no device | `MOBSF_ANALYZER_IDENTIFIER` unset or wrong. Check `adb devices` on the host, and use `host.docker.internal` rather than `localhost` in Docker |
 | MobSF reports a Frida or root error | The image is not rooted, or the system is not writable. Use a non-Play image, and start an AVD with `-writable-system` |
 | `mobsfy_device` fails | MobSF cannot reach the device over adb. Check the port, and that the emulator is running |
+| `mobsfy_device` says ok but Frida never works | MobSF could not download frida-server and said so only in its own log. See the Frida section above |
 | HTTPS traffic is not captured | The app pins certificates. Use `frida_instrument` with `ssl_pinning_bypass` |
 | `frida_logs` says "Data does not exist." | No hook ran. Frida did not attach (MobSF still reports `ok`) or the app is not running. Check `docker logs mobsf` for `ServerNotRunningError` |
 | `get_logcat` says `- waiting for device -` | No live session. Call it between `start_dynamic` and `stop_dynamic` |

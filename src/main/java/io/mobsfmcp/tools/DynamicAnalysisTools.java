@@ -142,8 +142,16 @@ public class DynamicAnalysisTools {
 					"'identifier' is required, e.g. host.docker.internal:5555. Run 'adb devices' to see it.");
 		}
 		JsonNode response = client.mobsfy(identifier.trim());
+		// MobSF logs "MobSFying Completed!" even when a step inside it failed. The one that
+		// fails most often is the frida-server download: MobSF gates it behind a
+		// reachability probe of google.com and baidu.com, so on a network that blocks those
+		// but allows GitHub it never tries the download that would have worked, and
+		// /system/fd_server is never pushed. Every later Frida call then fails, also
+		// reporting ok. See docs/dynamic-analysis-setup.md.
 		return new DynamicRunResult(null, status(response), message(response),
-				"If this succeeded, call device_status, then start_dynamic with an app hash.");
+				"MobSF reports success even when a step inside it failed, most often the frida-server "
+						+ "download. Before relying on Frida, check 'docker logs mobsf' for 'Cannot download "
+						+ "frida-server binary'. Then call device_status, then start_dynamic with an app hash.");
 	}
 
 	@McpTool(name = "start_dynamic",
