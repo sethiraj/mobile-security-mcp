@@ -18,6 +18,7 @@ import org.springframework.web.client.RestClient;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.containing;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
+import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
@@ -144,11 +145,30 @@ class DynamicAnalysisToolsTest {
 	}
 
 	@Test
-	void logcatReturnsTheNewestLinesOnly() {
-		DynamicAnalysisTools.LogcatResult logcat = tools().getLogcat("com.example.vuln", 1);
+	void logcatDecodesTheEventStreamAndKeepsTheNewestLines() {
+		DynamicAnalysisTools.LogcatResult logcat = tools().getLogcat("com.example.vuln", 2, 5);
 
-		assertThat(logcat.lineCount()).isEqualTo(2);
-		assertThat(logcat.lines()).containsExactly("E/vuln: crypto failed");
+		assertThat(logcat.lineCount()).isEqualTo(3);
+		assertThat(logcat.truncated()).isTrue();
+		assertThat(logcat.deadlineReached()).isFalse();
+		// MobSF replays the buffer oldest first, so the newest lines are the last ones read
+		assertThat(logcat.lines()).containsExactly("D/vuln: token abc123", "E/vuln: crypto failed");
+	}
+
+	@Test
+	void logcatReturnsEverythingWhenTheLimitIsNotReached() {
+		DynamicAnalysisTools.LogcatResult logcat = tools().getLogcat("com.example.vuln", 200, 5);
+
+		assertThat(logcat.truncated()).isFalse();
+		assertThat(logcat.lines()).hasSize(3).first().asString().isEqualTo("--------- beginning of main");
+	}
+
+	@Test
+	void logcatWithoutADeviceSaysToStartASessionFirst() {
+		assertThatThrownBy(() -> tools().getLogcat(MobsfStub.PACKAGE_WITHOUT_DEVICE, 10, 5))
+			.isInstanceOf(IllegalStateException.class)
+			.hasMessageContaining("start_dynamic")
+			.hasMessageContaining("before stop_dynamic");
 	}
 
 	@Test
@@ -170,6 +190,28 @@ class DynamicAnalysisToolsTest {
 			.withRequestBody(containing("default_hooks=api_monitor"))
 			.withRequestBody(containing("auxiliary_hooks="))
 			.withRequestBody(containing("frida_code=")));
+	}
+
+	@Test
+	void fridaInstrumentDoesNotPresentMobsfsOkAsAttachment() {
+		// MobSF returns ok whether or not Frida attached, so the result must not imply it did
+		DynamicAnalysisTools.FridaInstrumentResult result = tools().fridaInstrument(HASH, "api_monitor", null, null,
+				null);
+
+		assertThat(result.status()).isEqualTo("ok");
+		assertThat(result.attachmentConfirmed()).isFalse();
+		assertThat(result.verifyWith()).contains("frida_logs");
+	}
+
+	@Test
+	void fridaLogsExplainsMobsfsBareFailure() {
+		mobsf.stubFor(post(urlPathEqualTo("/api/v1/frida/logs"))
+			.willReturn(okJson("{\"status\": \"failed\", \"message\": \"Data does not exist.\"}")));
+
+		assertThatThrownBy(() -> tools().fridaLogs(HASH)).isInstanceOf(IllegalStateException.class)
+			.hasMessageContaining("Data does not exist.")
+			.hasMessageContaining("frida_instrument reports success regardless")
+			.hasMessageContaining("ServerNotRunningError");
 	}
 
 	@Test

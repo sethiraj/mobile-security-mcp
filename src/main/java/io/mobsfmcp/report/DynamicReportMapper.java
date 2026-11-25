@@ -87,27 +87,45 @@ public class DynamicReportMapper {
 			boolean failed = value.isBoolean() ? value.asBoolean()
 					: "high".equalsIgnoreCase(value.path("status").asString(""))
 							|| "failed".equalsIgnoreCase(value.path("status").asString(""));
+			Map<String, String> titles = failed ? TLS_FAILED_TITLES : TLS_PASSED_TITLES;
 			findings.add(new Finding("dynamic.tls." + entry.getKey(), "dynamic", "tls", failed ? "high" : "secure",
-					TLS_TITLES.getOrDefault(entry.getKey(), entry.getKey().replace('_', ' ')),
+					titles.getOrDefault(entry.getKey(), entry.getKey().replace('_', ' ')),
 					value.isObject() ? value.path("description").asString("")
 							: failed ? TLS_FAILED.getOrDefault(entry.getKey(), "The app failed this TLS check.")
-									: "The app passed this TLS check.",
+									: TLS_PASSED.getOrDefault(entry.getKey(), "The app passed this TLS check."),
 					List.of(), null, failed ? TLS_FIXES.get(entry.getKey()) : null));
 		});
 	}
 
-	/** MobSF names these after the problem; spelling them out keeps a report readable. */
-	private static final Map<String, String> TLS_TITLES = Map.of(
+	/**
+	 * MobSF names each check after the problem it looks for, so the name only describes
+	 * the result when the check fails. A title has to follow the outcome: reporting
+	 * {@code severity: secure} under the title "TLS is misconfigured" reads to an agent
+	 * summarizing the report as though the problem were present.
+	 */
+	private static final Map<String, String> TLS_FAILED_TITLES = Map.of(
 			"tls_misconfigured", "TLS is misconfigured",
 			"no_tls_pin_or_transparency", "No certificate pinning or transparency",
 			"pin_or_transparency_bypassed", "Certificate pinning was bypassed",
 			"has_cleartext", "App sends cleartext (unencrypted) traffic");
+
+	private static final Map<String, String> TLS_PASSED_TITLES = Map.of(
+			"tls_misconfigured", "TLS is configured correctly",
+			"no_tls_pin_or_transparency", "Certificate pinning or transparency is in use",
+			"pin_or_transparency_bypassed", "Certificate pinning held under attack",
+			"has_cleartext", "No cleartext traffic observed");
 
 	private static final Map<String, String> TLS_FAILED = Map.of(
 			"tls_misconfigured", "The app accepts TLS connections it should reject.",
 			"no_tls_pin_or_transparency", "The app does not pin certificates or use certificate transparency.",
 			"pin_or_transparency_bypassed", "Pinning was bypassed at runtime, so traffic can be intercepted.",
 			"has_cleartext", "Traffic was observed in cleartext and can be read or modified in transit.");
+
+	private static final Map<String, String> TLS_PASSED = Map.of(
+			"tls_misconfigured", "The app rejected the invalid certificates MobSF offered it.",
+			"no_tls_pin_or_transparency", "The app pins certificates or relies on certificate transparency.",
+			"pin_or_transparency_bypassed", "Pinning was not bypassed during this run.",
+			"has_cleartext", "No unencrypted traffic was observed during this run.");
 
 	private static final Map<String, String> TLS_FIXES = Map.of(
 			"tls_misconfigured", "Reject invalid certificates; do not disable hostname verification.",

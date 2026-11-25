@@ -1,15 +1,23 @@
 // SPDX-License-Identifier: MIT
 package io.mobsfmcp.client;
 
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.net.URI;
+import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
 import io.mobsfmcp.config.MobsfProperties;
@@ -260,9 +268,164 @@ public class MobsfClient {
 		return postForm("fetch the dynamic report for " + hash, "/api/v1/dynamic/report_json", form("hash", hash));
 	}
 
-	/** {@code POST /api/v1/android/logcat}: device log for one package. */
-	public JsonNode logcat(String packageName) {
-		return postForm("read logcat for " + packageName, "/api/v1/android/logcat", form("package", packageName));
+	/**
+	 * {@code POST /api/v1/android/logcat}: the device log for one package.
+	 * <p>
+	 * This is not a JSON endpoint, which is why it cannot go through
+	 * {@link #postForm}. MobSF answers {@code text/event-stream} and runs
+	 * {@code adb logcat} without {@code -d}, so it replays the whole ring buffer and then
+	 * tails the device forever: the response never completes on its own. Each event is
+	 * {@code data:} followed by Python's {@code repr()} of a bytes object, for example
+	 * {@code data:b'11-26 02:37:30.831 0 0 I ...
+'}.
+	 * <p>
+	 * The stream is therefore drained under a deadline on a separate thread and the
+	 * newest {@code maxLines} are kept in a ring buffer: the buffer is replayed oldest
+	 * first, so keeping the first lines read would return the oldest log, not the newest.
+	 * The connection is closed once the deadline passes, which is what unblocks the read.
+	 */
+	public Logcat logcat(String packageName, int maxLines, Duration deadline) {
+		String body = "package=" + URLEncoder.encode(packageName, StandardCharsets.UTF_8);
+		return call("read logcat for " + packageName, () -> {
+			HttpRequest request = HttpRequest
+				.newBuilder(URI.create(stripTrailingSlash(properties.url()) + "/api/v1/android/logcat"))
+				.version(HttpClient.Version.HTTP_1_1)
+				.timeout(properties.readTimeout())
+				.header(API_KEY_HEADER, requireApiKey())
+				.header("Content-Type", MediaType.APPLICATION_FORM_URLENCODED_VALUE)
+				.header("Accept", MediaType.TEXT_EVENT_STREAM_VALUE)
+				.POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8))
+				.build();
+			try {
+				HttpResponse<InputStream> response = uploadHttpClient.send(request,
+						HttpResponse.BodyHandlers.ofInputStream());
+				if (response.statusCode() / 100 != 2) {
+					try (InputStream in = response.body()) {
+						throw fromStatus("read logcat for " + packageName,
+								HttpStatusCode.valueOf(response.statusCode()),
+								new String(in.readAllBytes(), StandardCharsets.UTF_8));
+					}
+				}
+				return drainLogcat(response.body(), maxLines, deadline);
+			}
+			catch (IOException ex) {
+				throw new MobsfException(MobsfException.Kind.UNREACHABLE,
+						"Cannot reach MobSF at " + properties.url() + " to read logcat ("
+								+ ex.getClass().getSimpleName() + ": " + ex.getMessage()
+								+ "). Check MOBSF_URL and that MobSF is running.", ex);
+			}
+			catch (InterruptedException ex) {
+				Thread.currentThread().interrupt();
+				throw new MobsfException(MobsfException.Kind.UNREACHABLE,
+						"Reading logcat for " + packageName + " was interrupted.");
+			}
+		});
+	}
+
+	/** What a bounded read of the logcat stream collected. */
+	public record Logcat(List<String> lines, int totalLines, boolean truncated, boolean deadlineReached,
+			boolean waitingForDevice) {
+	}
+
+	/** Marker MobSF streams when its adb has no device attached. */
+	private static final String WAITING_FOR_DEVICE = "- waiting for device -";
+
+	private static Logcat drainLogcat(InputStream stream, int maxLines, Duration deadline) {
+		Deque<String> tail = new ArrayDeque<>(maxLines);
+		AtomicInteger total = new AtomicInteger();
+		AtomicBoolean waiting = new AtomicBoolean();
+		Thread reader = Thread.ofVirtual().start(() -> {
+			try (BufferedReader in = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))) {
+				String raw;
+				while ((raw = in.readLine()) != null) {
+					String line = decodeEvent(raw);
+					if (line == null) {
+						continue;
+					}
+					if (line.contains(WAITING_FOR_DEVICE)) {
+						waiting.set(true);
+					}
+					total.incrementAndGet();
+					synchronized (tail) {
+						if (tail.size() == maxLines) {
+							tail.removeFirst();
+						}
+						tail.addLast(line);
+					}
+				}
+			}
+			catch (IOException | RuntimeException ex) {
+				// Expected: the stream is closed from under the reader once the deadline passes.
+			}
+		});
+		boolean finished;
+		try {
+			finished = reader.join(deadline);
+		}
+		catch (InterruptedException ex) {
+			Thread.currentThread().interrupt();
+			finished = false;
+		}
+		if (!finished) {
+			closeQuietly(stream);
+			reader.interrupt();
+		}
+		synchronized (tail) {
+			return new Logcat(List.copyOf(tail), total.get(), total.get() > tail.size(), !finished, waiting.get());
+		}
+	}
+
+	private static void closeQuietly(InputStream stream) {
+		try {
+			stream.close();
+		}
+		catch (IOException ignored) {
+			// nothing useful to do; the read is being abandoned on purpose
+		}
+	}
+
+	/**
+	 * Turns one SSE line into a log line. MobSF writes {@code data:} followed by Python's
+	 * {@code repr()} of a bytes object, so the quotes and the {@code b} prefix are
+	 * stripped and the escapes it emits are undone. Blank lines and comments yield
+	 * {@code null}.
+	 */
+	static String decodeEvent(String raw) {
+		if (!raw.startsWith("data:")) {
+			return null;
+		}
+		String value = raw.substring(5).strip();
+		if ((value.startsWith("b'") && value.endsWith("'") || value.startsWith("b\"") && value.endsWith("\""))
+				&& value.length() >= 3) {
+			value = value.substring(2, value.length() - 1);
+		}
+		StringBuilder out = new StringBuilder(value.length());
+		for (int i = 0; i < value.length(); i++) {
+			char c = value.charAt(i);
+			if (c != '\\' || i + 1 >= value.length()) {
+				out.append(c);
+				continue;
+			}
+			char next = value.charAt(++i);
+			switch (next) {
+				case 'n' -> out.append('\n');
+				case 't' -> out.append('\t');
+				case 'r' -> { /* MobSF ends every event with one; a log line carries no CR */ }
+				case 'x' -> {
+					if (i + 2 < value.length()) {
+						try {
+							out.append((char) Integer.parseInt(value.substring(i + 1, i + 3), 16));
+							i += 2;
+						}
+						catch (NumberFormatException ex) {
+							out.append("\\x");
+						}
+					}
+				}
+				default -> out.append(next);
+			}
+		}
+		return out.toString().stripTrailing().isEmpty() ? null : out.toString().stripTrailing();
 	}
 
 	/** {@code POST /api/v1/android/tls_tests}: TLS/SSL misconfiguration and pinning tests. */

@@ -90,13 +90,34 @@ device_status          -> is a device attached?
 mobsfy_device          -> once per device
 upload_app + scan_app  -> static scan first; dynamic analysis needs the hash
 start_dynamic          -> installs and launches the app
-test_activities        -> exercises activities (exportedOnly=true finds access-control bugs)
 frida_instrument       -> e.g. defaultHooks="api_monitor,ssl_pinning_bypass"
+test_activities        -> exercises activities (exportedOnly=true finds access-control bugs)
 run_tls_tests          -> cleartext, certificate validation, pinning
 get_logcat             -> secrets the app logs at runtime
 stop_dynamic           -> collects logs, screenshots and app data
 export_report type=combined  -> static + dynamic findings in one JSON file
 ```
+
+**`frida_instrument` reports success even when Frida never attached.** MobSF answers
+`{"status": "ok", "message": ""}` and logs the real failure only to its own log. On the
+API 30 AVD used here, every call reported `ok` while MobSF's log showed
+`frida.ServerNotRunningError: unable to connect to remote frida-server: closed` for each
+one, and `apiMonitor` in the report stayed empty. So treat `ok` as "the request was
+accepted" and confirm with `frida_logs`: `"Data does not exist."` means no hook ran.
+
+To see the real error:
+
+```bash
+docker logs mobsf 2>&1 | grep -iE "frida|ServerNotRunning"
+```
+
+Instrument before exercising the app in any case — `frida_instrument` attaches to the
+running process, and `test_activities` cycles the app through every activity, which
+replaces it.
+
+**Read the log before you stop.** MobSF attaches adb for the duration of the session, so
+`get_logcat` after `stop_dynamic` has no device to read and reports
+`- waiting for device -`.
 
 ## Troubleshooting
 | Symptom | Cause and fix |
@@ -105,6 +126,8 @@ export_report type=combined  -> static + dynamic findings in one JSON file
 | MobSF reports a Frida or root error | The image is not rooted, or the system is not writable. Use a non-Play image, and start an AVD with `-writable-system` |
 | `mobsfy_device` fails | MobSF cannot reach the device over adb. Check the port, and that the emulator is running |
 | HTTPS traffic is not captured | The app pins certificates. Use `frida_instrument` with `ssl_pinning_bypass` |
+| `frida_logs` says "Data does not exist." | No hook ran. Frida did not attach (MobSF still reports `ok`) or the app is not running. Check `docker logs mobsf` for `ServerNotRunningError` |
+| `get_logcat` says `- waiting for device -` | No live session. Call it between `start_dynamic` and `stop_dynamic` |
 | Everything is empty after `stop_dynamic` | The app was not exercised. Use `test_activities` or `start_activity` between start and stop |
 
 ## Not available

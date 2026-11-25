@@ -81,7 +81,22 @@ class DynamicReportMapperTest {
 			.hasSize(4)
 			.filteredOn(f -> f.severity().equals("secure"))
 			.hasSize(3)
-			.allSatisfy(f -> assertThat(f.description()).isEqualTo("The app passed this TLS check."));
+			.allSatisfy(f -> assertThat(f.remediation()).isNull());
+	}
+
+	@Test
+	void aPassedTestIsTitledForWhatPassed() throws Exception {
+		// MobSF names every check after the problem it looks for, so "no_tls_pin_or_transparency"
+		// being false means pinning IS in use. A title repeating the problem name under
+		// severity "secure" reads as though the problem were present.
+		assertThat(dynamicReport().findings()).filteredOn(f -> f.severity().equals("secure"))
+			.extracting(Finding::title)
+			.containsExactlyInAnyOrder("TLS is configured correctly",
+					"Certificate pinning or transparency is in use", "Certificate pinning held under attack");
+
+		assertThat(dynamicReport().findings()).filteredOn(f -> f.id().equals("dynamic.tls.tls_misconfigured"))
+			.singleElement()
+			.satisfies(f -> assertThat(f.description()).contains("rejected the invalid certificates"));
 	}
 
 	@Test

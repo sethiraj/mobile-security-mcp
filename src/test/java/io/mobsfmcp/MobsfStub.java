@@ -34,6 +34,9 @@ public final class MobsfStub {
 			], "count": 1, "num_pages": 1}
 			""";
 
+	/** Package whose logcat stub answers as MobSF does with no device attached. */
+	public static final String PACKAGE_WITHOUT_DEVICE = "com.example.nodevice";
+
 	private MobsfStub() {
 	}
 
@@ -108,8 +111,20 @@ public final class MobsfStub {
 			.willReturn(okJson("{\"status\": \"ok\", \"message\": \"Dynamic analysis started\"}")));
 		server.stubFor(post(urlPathEqualTo("/api/v1/dynamic/stop_analysis"))
 			.willReturn(okJson("{\"status\": \"ok\", \"message\": \"Data collected\"}")));
+		// Not JSON: MobSF streams text/event-stream, each event being Python's repr() of a
+		// bytes object. See MobsfClient#logcat.
 		server.stubFor(post(urlPathEqualTo("/api/v1/android/logcat"))
-			.willReturn(okJson("{\"logcat\": [\"D/vuln: token abc123\", \"E/vuln: crypto failed\"]}")));
+			.willReturn(aResponse().withStatus(200)
+				.withHeader("Content-Type", "text/event-stream")
+				.withBody("data:b'--------- beginning of main\\n'\n\n"
+						+ "data:b'D/vuln: token abc123\\n'\n\n"
+						+ "data:b'E/vuln: crypto failed\\n'\n\n")));
+		// Added after the stub above so WireMock prefers it: the later of two matching stubs wins.
+		server.stubFor(post(urlPathEqualTo("/api/v1/android/logcat"))
+			.withRequestBody(containing("package=" + PACKAGE_WITHOUT_DEVICE))
+			.willReturn(aResponse().withStatus(200)
+				.withHeader("Content-Type", "text/event-stream")
+				.withBody("data:b'- waiting for device -\\n'\n\n")));
 		server.stubFor(post(urlPathEqualTo("/api/v1/android/tls_tests"))
 			.willReturn(okJson("{\"status\": \"ok\"}")));
 		server.stubFor(post(urlPathEqualTo("/api/v1/android/activity")).willReturn(okJson("{\"status\": \"ok\"}")));

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 package io.mobsfmcp.tools;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -45,7 +46,15 @@ public class DynamicAnalysisTools {
 	public record DynamicRunResult(String hash, String status, String message, String nextStep) {
 	}
 
-	public record LogcatResult(String packageName, int lineCount, List<String> lines) {
+	/**
+	 * @param lineCount lines seen in the stream, which is more than {@code lines} holds
+	 * when the log was longer than the limit
+	 * @param truncated the oldest lines were dropped to honour the limit
+	 * @param deadlineReached the stream was still producing when time ran out; MobSF tails
+	 * the device forever, so this is the normal outcome on a live device
+	 */
+	public record LogcatResult(String packageName, int lineCount, boolean truncated, boolean deadlineReached,
+			List<String> lines) {
 	}
 
 	public record FridaScripts(String device, List<String> scripts) {
@@ -129,7 +138,8 @@ public class DynamicAnalysisTools {
 		requireHash(hash);
 		JsonNode response = client.startDynamic(hash, Boolean.TRUE.equals(reinstall), install == null || install);
 		return new DynamicRunResult(hash, status(response), message(response),
-				"Exercise the app (test_activities, start_activity, frida_instrument), then call stop_dynamic and "
+				"Instrument first (frida_instrument), then exercise the app (test_activities, start_activity): the "
+						+ "activity tester restarts the process, so Frida must attach before it. Then call stop_dynamic and "
 						+ "get_dynamic_report.");
 	}
 
@@ -190,28 +200,27 @@ public class DynamicAnalysisTools {
 
 	@McpTool(name = "get_logcat",
 			description = "Device log (logcat) for one package, newest lines last. Useful for spotting secrets or "
-					+ "tokens the app logs at runtime.",
+					+ "tokens the app logs at runtime. Call it while a dynamic session is running: MobSF attaches "
+					+ "adb for the session, so after stop_dynamic there is no device to read from.",
 			annotations = @McpTool.McpAnnotations(title = "Get logcat", readOnlyHint = true, destructiveHint = false,
 					idempotentHint = true, openWorldHint = false))
 	public LogcatResult getLogcat(@McpToolParam(description = "Package name, e.g. com.example.app") String packageName,
-			@McpToolParam(description = "Maximum lines to return, newest kept (default 200)", required = false) Integer maxLines) {
+			@McpToolParam(description = "Maximum lines to return, newest kept (default 200)", required = false) Integer maxLines,
+			@McpToolParam(description = "Seconds to spend draining the log stream (default 15, max 120)",
+					required = false) Integer timeoutSeconds) {
 		if (packageName == null || packageName.isBlank()) {
 			throw new IllegalArgumentException("'packageName' is required; get it from get_scorecard or get_report.");
 		}
-		JsonNode response = client.logcat(packageName.trim());
-		List<String> lines = new ArrayList<>();
-		JsonNode logs = response.has("logcat") ? response.path("logcat") : response.path("data");
-		if (logs.isArray()) {
-			for (JsonNode line : logs) {
-				lines.add(line.asString(""));
-			}
+		int limit = maxLines == null || maxLines < 1 ? 200 : Math.min(maxLines, 5000);
+		int seconds = timeoutSeconds == null || timeoutSeconds < 1 ? 15 : Math.min(timeoutSeconds, 120);
+		MobsfClient.Logcat logcat = client.logcat(packageName.trim(), limit, Duration.ofSeconds(seconds));
+		if (logcat.waitingForDevice()) {
+			throw new IllegalStateException("MobSF has no device attached, so logcat returned '- waiting for device -'. "
+					+ "Logcat reads the device MobSF connects for a dynamic session: call start_dynamic first, read the "
+					+ "log while the app is running, and call get_logcat before stop_dynamic.");
 		}
-		else if (!logs.isMissingNode()) {
-			lines.addAll(List.of(logs.asString("").split("\\r?\\n")));
-		}
-		int limit = maxLines == null || maxLines < 1 ? 200 : maxLines;
-		List<String> tail = lines.size() <= limit ? lines : lines.subList(lines.size() - limit, lines.size());
-		return new LogcatResult(packageName, lines.size(), List.copyOf(tail));
+		return new LogcatResult(packageName, logcat.totalLines(), logcat.truncated(), logcat.deadlineReached(),
+				logcat.lines());
 	}
 
 	@McpTool(name = "frida_instrument",
@@ -220,13 +229,30 @@ public class DynamicAnalysisTools {
 					+ "optional custom Frida JavaScript.",
 			annotations = @McpTool.McpAnnotations(title = "Frida instrument", readOnlyHint = false,
 					destructiveHint = false, idempotentHint = false, openWorldHint = true))
-	public JsonNode fridaInstrument(@McpToolParam(description = "Hash of the running app") String hash,
+	public FridaInstrumentResult fridaInstrument(@McpToolParam(description = "Hash of the running app") String hash,
 			@McpToolParam(description = "Built-in hooks, comma separated, e.g. api_monitor,ssl_pinning_bypass", required = false) String defaultHooks,
 			@McpToolParam(description = "Auxiliary hooks, comma separated", required = false) String auxiliaryHooks,
 			@McpToolParam(description = "Custom Frida JavaScript to run", required = false) String script,
 			@McpToolParam(description = "Class name to trace, for class-tracing hooks", required = false) String className) {
 		requireHash(hash);
-		return client.fridaInstrument(hash, orEmpty(defaultHooks), orEmpty(auxiliaryHooks), orEmpty(script), className);
+		JsonNode response = client.fridaInstrument(hash, orEmpty(defaultHooks), orEmpty(auxiliaryHooks),
+				orEmpty(script), className);
+		// MobSF answers {"status":"ok","message":""} whether or not Frida attached: a
+		// frida-server that will not start on the device is logged by MobSF and swallowed
+		// by the API. Verified on an API 30 AVD, where every call reported ok while
+		// MobSF's own log showed frida.ServerNotRunningError on each one.
+		return new FridaInstrumentResult(hash, status(response), message(response), false,
+				"MobSF reports success even when Frida did not attach. Confirm with frida_logs or "
+						+ "frida_api_monitor: 'Data does not exist.' or an empty result means no hook ran, "
+						+ "usually because frida-server is not running on the device.");
+	}
+
+	/**
+	 * @param attachmentConfirmed always false: MobSF exposes no way to tell whether Frida
+	 * attached, so the caller has to check for hook output itself
+	 */
+	public record FridaInstrumentResult(String hash, String status, String message, boolean attachmentConfirmed,
+			String verifyWith) {
 	}
 
 	@McpTool(name = "frida_api_monitor",
@@ -243,7 +269,16 @@ public class DynamicAnalysisTools {
 					idempotentHint = true, openWorldHint = false))
 	public JsonNode fridaLogs(@McpToolParam(description = "Hash of the running app") String hash) {
 		requireHash(hash);
-		return client.fridaLogs(hash);
+		JsonNode response = client.fridaLogs(hash);
+		// MobSF says only "Data does not exist." when no hook has written anything, which
+		// gives an agent nothing to act on. The causes are few and worth naming.
+		if ("failed".equalsIgnoreCase(status(response))) {
+			throw new IllegalStateException("MobSF has no Frida output for " + hash + " (\"" + message(response)
+					+ "\"). Either no hook has run yet, or Frida never attached: frida_instrument reports success "
+					+ "regardless. Check that a dynamic session is running (start_dynamic), that frida-server "
+					+ "started on the device, and MobSF's own log for 'ServerNotRunningError'.");
+		}
+		return response;
 	}
 
 	@McpTool(name = "list_frida_scripts",
