@@ -13,6 +13,11 @@ services:
   mobsf:
     image: opensecurity/mobile-security-framework-mobsf:${MOBSF_TAG:-latest}
     container_name: mobsf
+    # Frida needs this. MobSF holds a Frida session open with sys.stdin.read(); without a
+    # stdin the container's stdin is /dev/null, read() returns at once, and the hooks are
+    # unloaded in the same instant they are loaded. With it, stdin is a pipe that never
+    # delivers, read() blocks, and the hooks stay live.
+    stdin_open: true
     ports: ["8000:8000"]                       # MobSF web UI: http://localhost:8000 (mobsf/mobsf)
     environment:
       MOBSF_API_KEY: ${MOBSF_API_KEY}          # pins the REST key so both containers share it

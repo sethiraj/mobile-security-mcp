@@ -19,16 +19,15 @@ An MCP ([Model Context Protocol](https://modelcontextprotocol.io)) server for [M
 > report MobSF bugs to [the MobSF project](https://github.com/MobSF/Mobile-Security-Framework-MobSF/issues)
 > and anything about this server here.
 
-> Status: **1.0.0-beta.2 — beta.** Verified end to end against the official MobSF image:
-> static analysis, JSON and SARIF reports, the app index, version comparison, suppression,
-> retention, the hardened HTTP mode, and **dynamic analysis on a real Android emulator** —
-> activity testing, screenshots, observed traffic, TLS tests and logcat.
+> Status: **1.0.0.** Verified end to end against the official MobSF image and a real
+> Android emulator: static analysis, JSON and SARIF reports, the app index, version
+> comparison, suppression, retention, the hardened HTTP mode, and dynamic analysis —
+> activity testing, screenshots, observed traffic, TLS tests, logcat, and Frida
+> instrumentation with recorded API calls.
 >
-> The Frida tools are verified too — `frida_instrument`, `frida_api_monitor` and
-> `frida_logs` have captured real hook output on that emulator — but **getting Frida to
-> work at all needs three workarounds for MobSF bugs**, and through the official MobSF
-> image `apiMonitor` will be sparse. Read
-> [docs/dynamic-analysis-setup.md](docs/dynamic-analysis-setup.md) before relying on them.
+> Dynamic analysis needs a rooted, writable-system device and three workarounds for MobSF
+> bugs; the compose file handles one of them for you. Read
+> [docs/dynamic-analysis-setup.md](docs/dynamic-analysis-setup.md) before your first run.
 > See [MILESTONES.md](MILESTONES.md) and [CHANGELOG.md](CHANGELOG.md).
 >
 > Only analyze apps you are authorized to test.
@@ -145,7 +144,7 @@ Reports are written to `./reports/<hash>/static.json`, with `static.raw.json` fo
 This repository is also a GitHub Action: it starts MobSF, scans an app, and fails the build on high-severity findings.
 
 ```yaml
-- uses: sethiraj/mobile-security-mcp@v1.0.0-beta.2
+- uses: sethiraj/mobile-security-mcp@v1.0.0
   id: mobsf
   with:
     app: app/build/outputs/apk/release/app-release.apk

@@ -201,7 +201,7 @@ class DynamicAnalysisToolsTest {
 
 	@Test
 	void fridaInstrumentSendsEveryParameterMobsfRequires() {
-		tools().fridaInstrument(HASH, "api_monitor", "", "console.log(1)", null);
+		tools().fridaInstrument(HASH, "api_monitor", "", "console.log(1)", null, 1);
 
 		mobsf.verify(postRequestedFor(urlPathEqualTo("/api/v1/frida/instrument"))
 			.withRequestBody(containing("default_hooks=api_monitor"))
@@ -210,14 +210,32 @@ class DynamicAnalysisToolsTest {
 	}
 
 	@Test
-	void fridaInstrumentDoesNotPresentMobsfsOkAsAttachment() {
-		// MobSF returns ok whether or not Frida attached, so the result must not imply it did
+	void fridaInstrumentReportsWhatTheHooksCaptured() {
+		// MobSF answers ok whether or not Frida attached, so the hooks' own output is the
+		// only honest evidence; the stub has both an api monitor entry and log output
 		DynamicAnalysisTools.FridaInstrumentResult result = tools().fridaInstrument(HASH, "api_monitor", null, null,
-				null);
+				null, 1);
 
-		assertThat(result.status()).isEqualTo("ok");
-		assertThat(result.attachmentConfirmed()).isFalse();
-		assertThat(result.verifyWith()).contains("frida_logs");
+		assertThat(result.heldForSeconds()).isEqualTo(1);
+		assertThat(result.logLines()).isEqualTo(2);
+		assertThat(result.hooksConfirmed()).isTrue();
+		assertThat(result.problem()).isNull();
+		assertThat(result.nextStep()).contains("frida_api_monitor");
+	}
+
+	@Test
+	void fridaInstrumentSaysSoWhenNoHookWroteAnything() {
+		DynamicAnalysisTools.FridaInstrumentResult result = tools()
+			.fridaInstrument(MobsfStub.HASH_WITHOUT_FRIDA_OUTPUT, "api_monitor", null, null, null, 1);
+
+		assertThat(result.hooksConfirmed()).isFalse();
+		assertThat(result.problem()).contains("Frida did not attach");
+	}
+
+	@Test
+	void fridaInstrumentCapsTheHoldAndFillsInADefault() {
+		assertThat(tools().fridaInstrument(HASH, "api_monitor", null, null, null, 9999).heldForSeconds())
+			.isEqualTo(300);
 	}
 
 	@Test

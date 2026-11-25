@@ -178,23 +178,35 @@ adb shell 'nohup /data/local/tmp/fd_server >/dev/null 2>&1 &'
 MobSF then logs "Frida Server v17.18.0 is already running" and the injection succeeds.
 This is [MobSF PR #2754](https://github.com/MobSF/Mobile-Security-Framework-MobSF/pull/2754).
 
-**In the Docker image the script is unloaded the instant it loads.** MobSF's Frida session
-ends with `sys.stdin.read()`, which blocks when MobSF is run from a terminal but returns
-immediately in the container, where stdin is `/dev/null`:
+**The MobSF container needs a stdin, or the hooks are unloaded the instant they load.**
+MobSF's Frida session ends with `sys.stdin.read()`:
 
 ```python
 script.load()
 ...
-sys.stdin.read()     # returns '' at once in the container
+sys.stdin.read()     # with stdin at /dev/null this returns '' immediately
 script.unload()
 session.detach()
 ```
 
-So `frida_instrument` logs "Frida Script injected with bridges" and the hooks are gone
-before the app can call anything. The hooks themselves work — holding that session open
-produced real `api_monitor` output on this emulator — but through the official image a
-single `frida_instrument` call captures almost nothing. Call it repeatedly while the app
-is being exercised, and expect `apiMonitor` to be sparse.
+A container started without a stdin has `/dev/null` there, so `read()` returns at once and
+the hooks are gone before the app can call anything. `frida_instrument` logs "Frida Script
+injected with bridges" and captures nothing — six injections in a row captured zero bytes
+here. The bundled `docker-compose.yml` therefore sets **`stdin_open: true`** on the MobSF
+service; if you run MobSF yourself, use `docker run -i`.
+
+With a stdin, `read()` blocks and the hooks stay live — but then the endpoint never
+answers, because it only replies once the session ends. That is why `frida_instrument`
+takes `durationSeconds`: it holds the request open for that long while the app is
+exercised, then ends it, which is what unloads the script. One held session occupies a
+MobSF worker for the whole duration.
+
+`frida_instrument` reports `hooksConfirmed`, taken from the hooks' own log rather than from
+MobSF's status, so `false` means Frida genuinely did not attach. It deliberately does not
+report a captured-call count: MobSF keeps appending to the API monitor for tens of seconds
+after the session ends, so any count taken when the call returns is a small fraction of the
+total. Read `frida_api_monitor`, or export the report, for the real figure — a 30-second
+hold on Selendroid produced 66 recorded calls.
 
 `device.spawn()` also times out on this emulator; MobSF reports that as "Timed out while
 waiting for device to appear" and falls back to attaching to the frontmost app. Make sure

@@ -251,35 +251,92 @@ public class DynamicAnalysisTools {
 	}
 
 	@McpTool(name = "frida_instrument",
-			description = "Run Frida against the live app. defaultHooks and auxiliaryHooks are MobSF's built-in hook "
-					+ "sets (e.g. api_monitor, ssl_pinning_bypass, root_bypass, debugger_check_bypass); script is "
-					+ "optional custom Frida JavaScript.",
+			description = "Run Frida against the live app and hold the hooks in place while it is exercised. "
+					+ "defaultHooks and auxiliaryHooks are MobSF's built-in hook sets (e.g. api_monitor, "
+					+ "ssl_pinning_bypass, root_bypass, debugger_check_bypass); script is optional custom Frida "
+					+ "JavaScript. This call blocks for durationSeconds: exercise the app from another client in "
+					+ "the meantime, or call test_activities afterwards and instrument again. It reports how much "
+					+ "the hooks actually captured, so an empty result means Frida did not attach.",
 			annotations = @McpTool.McpAnnotations(title = "Frida instrument", readOnlyHint = false,
 					destructiveHint = false, idempotentHint = false, openWorldHint = true))
 	public FridaInstrumentResult fridaInstrument(@McpToolParam(description = "Hash of the running app") String hash,
 			@McpToolParam(description = "Built-in hooks, comma separated, e.g. api_monitor,ssl_pinning_bypass", required = false) String defaultHooks,
 			@McpToolParam(description = "Auxiliary hooks, comma separated", required = false) String auxiliaryHooks,
 			@McpToolParam(description = "Custom Frida JavaScript to run", required = false) String script,
-			@McpToolParam(description = "Class name to trace, for class-tracing hooks", required = false) String className) {
+			@McpToolParam(description = "Class name to trace, for class-tracing hooks", required = false) String className,
+			@McpToolParam(description = "Seconds to hold the hooks live while the app is exercised "
+					+ "(default 20, max 300)", required = false) Integer durationSeconds) {
 		requireHash(hash);
-		JsonNode response = client.fridaInstrument(hash, orEmpty(defaultHooks), orEmpty(auxiliaryHooks),
-				orEmpty(script), className);
-		// MobSF answers {"status":"ok","message":""} whether or not Frida attached: a
-		// frida-server that will not start on the device is logged by MobSF and swallowed
-		// by the API. Verified on an API 30 AVD, where every call reported ok while
-		// MobSF's own log showed frida.ServerNotRunningError on each one.
-		return new FridaInstrumentResult(hash, status(response), message(response), false,
-				"MobSF reports success even when Frida did not attach. Confirm with frida_logs or "
-						+ "frida_api_monitor: 'Data does not exist.' or an empty result means no hook ran, "
-						+ "usually because frida-server is not running on the device.");
+		int seconds = durationSeconds == null || durationSeconds < 1 ? 20 : Math.min(durationSeconds, 300);
+		// MobSF's endpoint never answers while the hooks are live, so the client holds the
+		// request open for this long and then ends it. See MobsfClient#fridaInstrument.
+		client.fridaInstrument(hash, orEmpty(defaultHooks), orEmpty(auxiliaryHooks), orEmpty(script), className,
+				Duration.ofSeconds(seconds));
+
+		// MobSF reports nothing useful about whether Frida attached, so the hooks' own log is
+		// the only honest signal. It is written as the session tears down, which happens
+		// after the request is cancelled, so give it a moment to appear.
+		//
+		// The captured call count is deliberately not reported. MobSF keeps appending to the
+		// API monitor for tens of seconds after the session ends -- a reading taken when this
+		// call returns was a small fraction of the eventual total in every run here -- so any
+		// number would be wrong. frida_api_monitor reads the real total whenever the caller
+		// asks for it.
+		List<String> logLines = awaitHookOutput(hash);
+		return new FridaInstrumentResult(hash, seconds, logLines.size(), !logLines.isEmpty(),
+				logLines.isEmpty() ? "No hook wrote anything. Frida did not attach: check that the app is running "
+						+ "and frontmost, that frida-server is up on the device, and docs/dynamic-analysis-setup.md "
+						+ "for the three MobSF problems that stop it." : null,
+				logLines.isEmpty() ? null
+						: "Call frida_api_monitor for the calls the hooks recorded; MobSF keeps writing to it for "
+								+ "a while after the session ends, so a later call sees more.");
 	}
 
 	/**
-	 * @param attachmentConfirmed always false: MobSF exposes no way to tell whether Frida
-	 * attached, so the caller has to check for hook output itself
+	 * MobSF flushes the hook log as the session ends, which happens after the request is
+	 * cancelled, so poll briefly rather than reporting a premature zero.
 	 */
-	public record FridaInstrumentResult(String hash, String status, String message, boolean attachmentConfirmed,
-			String verifyWith) {
+	private List<String> awaitHookOutput(String hash) {
+		for (int attempt = 0; attempt < HOOK_OUTPUT_ATTEMPTS; attempt++) {
+			List<String> lines = fridaLogLines(hash);
+			if (!lines.isEmpty()) {
+				return lines;
+			}
+			try {
+				Thread.sleep(HOOK_OUTPUT_POLL.toMillis());
+			}
+			catch (InterruptedException ex) {
+				Thread.currentThread().interrupt();
+				return List.of();
+			}
+		}
+		return List.of();
+	}
+
+	private static final int HOOK_OUTPUT_ATTEMPTS = 15;
+
+	private static final Duration HOOK_OUTPUT_POLL = Duration.ofSeconds(1);
+
+	private List<String> fridaLogLines(String hash) {
+		try {
+			JsonNode response = client.fridaLogs(hash);
+			String message = message(response);
+			if (!"ok".equalsIgnoreCase(status(response)) || message == null || message.isBlank()) {
+				return List.of();
+			}
+			return List.of(message.split("\r?\n"));
+		}
+		catch (MobsfException ex) {
+			return List.of();
+		}
+	}
+
+	/**
+	 * @param hooksConfirmed a hook wrote output, which is the only evidence MobSF offers
+	 * that Frida attached at all
+	 */
+	public record FridaInstrumentResult(String hash, int heldForSeconds, int logLines, boolean hooksConfirmed,
+			String problem, String nextStep) {
 	}
 
 	@McpTool(name = "frida_api_monitor",

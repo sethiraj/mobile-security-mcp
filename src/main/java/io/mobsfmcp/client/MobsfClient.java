@@ -16,6 +16,10 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
@@ -445,13 +449,73 @@ public class MobsfClient {
 				form("hash", hash, "activity", activity));
 	}
 
-	/** {@code POST /api/v1/frida/instrument}: runs Frida hooks and custom scripts against the app. */
-	public JsonNode fridaInstrument(String hash, String defaultHooks, String auxiliaryHooks, String code,
-			String className) {
-		MultiValueMap<String, String> form = form("hash", hash, "default_hooks", defaultHooks, "auxiliary_hooks",
-				auxiliaryHooks, "frida_code", code);
-		form.add("class_name", className == null ? "" : className);
-		return postSlowForm("instrument " + hash + " with Frida", "/api/v1/frida/instrument", form);
+	/**
+	 * {@code POST /api/v1/frida/instrument}: loads Frida hooks against the running app and
+	 * holds them live for {@code hold}, then ends the session.
+	 * <p>
+	 * This endpoint never answers while the hooks are live. MobSF loads the script and then
+	 * blocks on {@code sys.stdin.read()}, so the response arrives only once the session
+	 * ends. Waiting for it would mean waiting forever, and a client that gives up early
+	 * tears the session down with it. So the request is sent, held open for {@code hold}
+	 * while the app is exercised, and then cancelled, which is what unblocks MobSF and
+	 * makes it unload the script.
+	 * <p>
+	 * The container must have a stdin for this to work at all: with stdin at
+	 * {@code /dev/null}, {@code read()} returns at once and the hooks are unloaded in the
+	 * same instant they load. The bundled compose file sets {@code stdin_open: true}.
+	 * <p>
+	 * One held session occupies a MobSF worker for the whole duration.
+	 */
+	public void fridaInstrument(String hash, String defaultHooks, String auxiliaryHooks, String code, String className,
+			Duration hold) {
+		String body = formBody("hash", hash, "default_hooks", defaultHooks, "auxiliary_hooks", auxiliaryHooks,
+				"frida_code", code, "class_name", className == null ? "" : className);
+		HttpRequest request = HttpRequest
+			.newBuilder(URI.create(stripTrailingSlash(properties.url()) + "/api/v1/frida/instrument"))
+			.version(HttpClient.Version.HTTP_1_1)
+			.header(API_KEY_HEADER, requireApiKey())
+			.header("Content-Type", MediaType.APPLICATION_FORM_URLENCODED_VALUE)
+			.POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8))
+			.build();
+		// Not routed through call(): that helper treats an empty body as a failure, and this
+		// request is expected to produce no body at all.
+		CompletableFuture<HttpResponse<Void>> exchange = uploadHttpClient.sendAsync(request,
+				HttpResponse.BodyHandlers.discarding());
+		try {
+			// A response before the deadline means the session ended on its own, which is
+			// what happens when the hooks could not be loaded. That shows up as no hook
+			// output, which the caller checks, so there is nothing to read here either way.
+			exchange.get(hold.toMillis(), TimeUnit.MILLISECONDS);
+		}
+		catch (TimeoutException expected) {
+			// The normal path: the hooks stayed live for the whole duration.
+		}
+		catch (ExecutionException ex) {
+			throw new MobsfException(MobsfException.Kind.UNREACHABLE, "Cannot reach MobSF at " + properties.url()
+					+ " to instrument " + hash + " with Frida (" + ex.getCause().getClass().getSimpleName()
+					+ "). Check MOBSF_URL and that MobSF is running.", ex);
+		}
+		catch (InterruptedException ex) {
+			Thread.currentThread().interrupt();
+		}
+		finally {
+			// Cancelling ends the exchange, which is what unblocks MobSF and unloads the script.
+			exchange.cancel(true);
+		}
+	}
+
+	private static String formBody(String... keysAndValues) {
+		StringBuilder body = new StringBuilder();
+		for (int i = 0; i < keysAndValues.length; i += 2) {
+			if (!body.isEmpty()) {
+				body.append('&');
+			}
+			body.append(URLEncoder.encode(keysAndValues[i], StandardCharsets.UTF_8))
+				.append('=')
+				.append(URLEncoder.encode(keysAndValues[i + 1] == null ? "" : keysAndValues[i + 1],
+						StandardCharsets.UTF_8));
+		}
+		return body.toString();
 	}
 
 	/** {@code POST /api/v1/frida/api_monitor}: API calls captured by Frida. */

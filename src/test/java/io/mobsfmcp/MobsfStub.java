@@ -37,6 +37,9 @@ public final class MobsfStub {
 	/** Package whose logcat stub answers as MobSF does with no device attached. */
 	public static final String PACKAGE_WITHOUT_DEVICE = "com.example.nodevice";
 
+	/** Hash whose Frida stubs answer as MobSF does when no hook wrote anything. */
+	public static final String HASH_WITHOUT_FRIDA_OUTPUT = "11111111111111111111111111111111";
+
 	private MobsfStub() {
 	}
 
@@ -139,7 +142,19 @@ public final class MobsfStub {
 			.willReturn(okJson("{\"status\": \"ok\", \"message\": \"Frida hooks applied\"}")));
 		server.stubFor(post(urlPathEqualTo("/api/v1/frida/api_monitor"))
 			.willReturn(okJson("{\"data\": [{\"class\": \"javax.crypto.Cipher\", \"method\": \"getInstance\"}]}")));
-		server.stubFor(post(urlPathEqualTo("/api/v1/frida/logs")).willReturn(okJson("{\"data\": \"hook loaded\"}")));
+		// Real shape: status + message, the message being the whole log as one blob.
+		server.stubFor(post(urlPathEqualTo("/api/v1/frida/logs")).willReturn(okJson(
+				"{\"status\": \"ok\", \"message\": \"Loaded Frida Script - api_monitor\\n[API Monitor] ready\\n\"}")));
+		// Registered after the two stubs above so WireMock prefers them for this hash.
+		server.stubFor(post(urlPathEqualTo("/api/v1/frida/logs"))
+			.withRequestBody(containing("hash=" + HASH_WITHOUT_FRIDA_OUTPUT))
+			.willReturn(okJson("{\"status\": \"failed\", \"message\": \"Data does not exist.\"}")));
+		server.stubFor(post(urlPathEqualTo("/api/v1/frida/api_monitor"))
+			.withRequestBody(containing("hash=" + HASH_WITHOUT_FRIDA_OUTPUT))
+			.willReturn(okJson("{\"data\": []}")));
+		server.stubFor(post(urlPathEqualTo("/api/v1/frida/instrument"))
+			.withRequestBody(containing("hash=" + HASH_WITHOUT_FRIDA_OUTPUT))
+			.willReturn(okJson("{\"status\": \"ok\", \"message\": \"\"}")));
 		server.stubFor(post(urlPathEqualTo("/api/v1/frida/list_scripts"))
 			.willReturn(okJson("{\"status\": \"ok\", \"files\": [\"api_monitor.js\", \"ssl_pinning_bypass.js\"]}")));
 		server.stubFor(post(urlPathEqualTo("/api/v1/android/adb_command"))

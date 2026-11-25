@@ -72,9 +72,13 @@ class McpTransportsIT {
 	}
 
 	private void exercise(McpClientTransport transport) {
+		// The stdio case starts a cold JVM and a whole Spring context as a child process,
+		// which took 13s on an idle machine here and longer while this test's own context
+		// and a MobSF container are running. requestTimeout covers the initialize call, so
+		// 30s made this a timing test rather than a transport test.
 		try (McpSyncClient client = McpClient.sync(transport)
-			.initializationTimeout(Duration.ofSeconds(120))
-			.requestTimeout(Duration.ofSeconds(30))
+			.initializationTimeout(Duration.ofSeconds(180))
+			.requestTimeout(Duration.ofSeconds(180))
 			.build()) {
 			assertThat(client.initialize().serverInfo().name()).isEqualTo("mobsf-mcp");
 

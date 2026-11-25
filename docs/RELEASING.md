@@ -16,20 +16,28 @@ registry. Nothing here runs by itself.
 
    The MIT copyright in `LICENSE` is **Surendran E**.
 
-2. **Re-check the market.** This was never possible from the build machine, which cannot
-   reach GitHub. Search GitHub, `registry.modelcontextprotocol.io`, the Docker MCP Catalog
-   and Smithery for "mobsf mcp". If an actively maintained server already covers this,
-   contributing there beats publishing another one.
+2. **Re-check the market — done 2026-11-26.** Two community MobSF MCP servers exist:
+   [pullkitsan/mobsf-mcp-server](https://github.com/pullkitsan/mobsf-mcp-server) (MIT,
+   one documented tool, last code change Jul 2025) and
+   [KevinMitchell-OSWP-CISSP/Mobile-Security-Framework-MobSF-MCP](https://github.com/KevinMitchell-OSWP-CISSP/Mobile-Security-Framework-MobSF-MCP)
+   (18 tools, no licence file, last commit Dec 2025). Both are static-only and
+   stdio-only, neither publishes a report schema, and neither ships an image of its own.
+   Dynamic analysis, the dual transport, the normalized schema and the published image are
+   what this server adds, so building it stands.
 
-3. **Create the GitHub repository** and push the code. The image labels, `server.json` and
-   the README all point at it, and the release workflow lives there.
+3. **GitHub repository — done.** The source is at
+   `https://github.com/sethiraj/mobile-security-mcp`, which every source link, the OCI
+   `source` label and `server.json` point at.
 
-4. **Add the repository secrets** `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` (a Docker Hub
-   *access token*, not your password: Docker Hub → Account settings → Personal access
-   tokens, scope "Read & Write"). GHCR needs nothing extra.
+4. **Add the repository secrets** `DOCKERHUB_USERNAME` (`sure4docker`) and
+   `DOCKERHUB_TOKEN` (a Docker Hub *access token*, not your password: Docker Hub → Account
+   settings → Personal access tokens, scope "Read & Write"). GHCR needs nothing extra.
+   **Until these exist, pushing a `v*` tag fails at the login step** and nothing is
+   published.
 
-5. **Create the Docker Hub repository** `sure4docker/mobsf-mcp` and paste the README's summary
-   into its description.
+5. **Create the Docker Hub repository** `sure4docker/mobsf-mcp`, paste
+   `docs/dockerhub-overview.md` into its description, and upload `assets/logo-512.png`
+   (Docker Hub does not accept SVG).
 
 ## Each release
 
