@@ -155,6 +155,53 @@ docker exec mobsf chmod 755 /home/mobsf/.MobSF/downloads/frida-server-17.18.0-an
 Then call `mobsfy_device` again and check that `/system/fd_server` exists. `/system` must
 be writable for the push to land, so do this after the `avbctl` step above.
 
+Two further problems stand between that and working hooks, both confirmed on API 30:
+
+**frida-server cannot run from `/system` on Android 10+.** Bionic's linker puts a binary
+executed from `/system/*` in the restricted system namespace, so frida's helper cannot
+`dlopen` the Android runtime and the server aborts at once:
+
+```text
+Frida:ERROR:.../linux/linux-host-session.vala:716:frida_android_helper_service_do_start:
+assertion failed: (rt_mod != null)
+```
+
+MobSF runs `/system/fd_server` unconditionally. Running the same binary from
+`/data/local/tmp` works, and MobSF checks `ps` for a process named `fd_server` before
+starting its own, so starting it yourself makes MobSF skip its broken launch:
+
+```bash
+adb shell 'cp /system/fd_server /data/local/tmp/fd_server && chmod 755 /data/local/tmp/fd_server'
+adb shell 'nohup /data/local/tmp/fd_server >/dev/null 2>&1 &'
+```
+
+MobSF then logs "Frida Server v17.18.0 is already running" and the injection succeeds.
+This is [MobSF PR #2754](https://github.com/MobSF/Mobile-Security-Framework-MobSF/pull/2754).
+
+**In the Docker image the script is unloaded the instant it loads.** MobSF's Frida session
+ends with `sys.stdin.read()`, which blocks when MobSF is run from a terminal but returns
+immediately in the container, where stdin is `/dev/null`:
+
+```python
+script.load()
+...
+sys.stdin.read()     # returns '' at once in the container
+script.unload()
+session.detach()
+```
+
+So `frida_instrument` logs "Frida Script injected with bridges" and the hooks are gone
+before the app can call anything. The hooks themselves work — holding that session open
+produced real `api_monitor` output on this emulator — but through the official image a
+single `frida_instrument` call captures almost nothing. Call it repeatedly while the app
+is being exercised, and expect `apiMonitor` to be sparse.
+
+`device.spawn()` also times out on this emulator; MobSF reports that as "Timed out while
+waiting for device to appear" and falls back to attaching to the frontmost app. Make sure
+the app under test really is frontmost — a stuck permission dialog means the hooks land in
+`com.android.permissioncontroller` instead. Selendroid targets an old SDK, so API 30 shows
+a permission-review screen that must be dismissed before the app will start at all.
+
 **Read the log before you stop.** MobSF attaches adb for the duration of the session, so
 `get_logcat` after `stop_dynamic` has no device to read and reports
 `- waiting for device -`.

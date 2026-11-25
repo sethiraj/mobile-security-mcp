@@ -67,8 +67,20 @@ public record ScanReport(String schemaVersion, ScanType scanType, Instant genera
 
 	/** Filled from M6 onwards; null in static-only reports. */
 	@JsonInclude(JsonInclude.Include.NON_NULL)
-	public record DynamicDetails(Map<String, Object> tlsTests, List<String> apiMonitor, List<String> httpTraffic,
+	public record DynamicDetails(Map<String, Object> tlsTests, List<ApiCall> apiMonitor, List<String> httpTraffic,
 			List<String> fileSystem, List<String> logcatHighlights, List<String> screenshots, List<String> domains) {
+	}
+
+	/**
+	 * One call Frida's API monitor recorded at runtime. MobSF groups these by category
+	 * ({@code {"Device Data": [call, call]}}), which is where {@code category} comes from.
+	 *
+	 * @param calledFrom the app frame that made the call, which is what tells an agent
+	 * whether the app itself or a library is responsible
+	 */
+	@JsonInclude(JsonInclude.Include.NON_NULL)
+	public record ApiCall(String category, String className, String method, List<String> arguments,
+			String returnValue, String calledFrom) {
 	}
 
 	@JsonInclude(JsonInclude.Include.NON_NULL)

@@ -24,12 +24,12 @@ An MCP ([Model Context Protocol](https://modelcontextprotocol.io)) server for [M
 > retention, the hardened HTTP mode, and **dynamic analysis on a real Android emulator** —
 > activity testing, screenshots, observed traffic, TLS tests and logcat.
 >
-> **Not yet verified: the Frida tools.** `frida_instrument`, `frida_api_monitor` and
-> `frida_logs` are built against MobSF 4.5.4's API but have never run against live Frida
-> output, because MobSF failed to install its frida-server on the emulator used here. The
-> cause and the workaround are in
-> [docs/dynamic-analysis-setup.md](docs/dynamic-analysis-setup.md). See
-> [MILESTONES.md](MILESTONES.md) and [CHANGELOG.md](CHANGELOG.md).
+> The Frida tools are verified too — `frida_instrument`, `frida_api_monitor` and
+> `frida_logs` have captured real hook output on that emulator — but **getting Frida to
+> work at all needs three workarounds for MobSF bugs**, and through the official MobSF
+> image `apiMonitor` will be sparse. Read
+> [docs/dynamic-analysis-setup.md](docs/dynamic-analysis-setup.md) before relying on them.
+> See [MILESTONES.md](MILESTONES.md) and [CHANGELOG.md](CHANGELOG.md).
 >
 > Only analyze apps you are authorized to test.
 

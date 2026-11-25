@@ -25,6 +25,8 @@ All notable changes to this project are documented here. The format follows
 - `dynamicAnalysis.tlsTests` keeps MobSF's booleans as booleans. They were rendered with `toString()`, and the string `"false"` is truthy in most languages, so a caller reading the field directly would have inverted every check.
 - `frida_instrument` and `mobsfy_device` no longer present MobSF's success as their own. MobSF answers `ok` whether or not Frida attached, and logs "MobSFying Completed!" even when a step inside it failed; `frida_logs` turns MobSF's bare "Data does not exist." into the causes worth checking.
 
+- `dynamicAnalysis.apiMonitor` carries the calls Frida recorded, not just MobSF's category names. MobSF returns `apimon` grouped by category (`{"Device Data": [call, ...]}`) and the generic string helper kept only the keys, so every captured call was discarded. Each call now reports its category, class, method, arguments, return value and the frame that made it. Found by running the hooks for real for the first time.
+
 ### Documented
 - Why Frida can silently do nothing: MobSF gates the frida-server download behind a reachability probe of google.com and baidu.com, so on a network that blocks those but allows GitHub it never attempts the download that would have worked, never pushes `/system/fd_server`, and reports success regardless. `docs/dynamic-analysis-setup.md` has the root cause, the two commands that confirm it, and the workaround.
 

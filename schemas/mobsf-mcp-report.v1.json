@@ -54,7 +54,30 @@
         "apiMonitor" : {
           "type" : "array",
           "items" : {
-            "type" : "string"
+            "type" : "object",
+            "properties" : {
+              "arguments" : {
+                "type" : "array",
+                "items" : {
+                  "type" : "string"
+                }
+              },
+              "calledFrom" : {
+                "type" : "string"
+              },
+              "category" : {
+                "type" : "string"
+              },
+              "className" : {
+                "type" : "string"
+              },
+              "method" : {
+                "type" : "string"
+              },
+              "returnValue" : {
+                "type" : "string"
+              }
+            }
           }
         },
         "domains" : {

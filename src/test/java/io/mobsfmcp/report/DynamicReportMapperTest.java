@@ -100,6 +100,31 @@ class DynamicReportMapperTest {
 	}
 
 	@Test
+	void apiMonitorCallsAreFlattenedOutOfMobsfsGrouping() throws Exception {
+		// MobSF groups calls by category: {"Device Data": [call], "Crypto": [call]}. Reading
+		// that as a list of strings kept only the category names and dropped every call.
+		ScanReport.DynamicDetails details = dynamicReport().dynamicAnalysis();
+
+		assertThat(details.apiMonitor()).hasSize(2)
+			.extracting(ScanReport.ApiCall::category)
+			.containsExactlyInAnyOrder("Device Data", "Crypto");
+
+		assertThat(details.apiMonitor()).filteredOn(call -> "Crypto".equals(call.category()))
+			.singleElement()
+			.satisfies(call -> {
+				assertThat(call.className()).isEqualTo("javax.crypto.Cipher");
+				assertThat(call.method()).isEqualTo("getInstance");
+				assertThat(call.arguments()).containsExactly("AES/ECB/PKCS5Padding");
+				assertThat(call.returnValue()).isEqualTo("javax.crypto.Cipher@1a2b3c");
+				assertThat(call.calledFrom()).contains("HomeScreenActivity.onCreate");
+			});
+		// MobSF sends no 'result' for most calls; absent must read as null, not ""
+		assertThat(details.apiMonitor()).filteredOn(call -> "Device Data".equals(call.category()))
+			.singleElement()
+			.satisfies(call -> assertThat(call.returnValue()).isNull());
+	}
+
+	@Test
 	void countsSeveritiesForTheSummary() throws Exception {
 		ScanReport.Summary summary = dynamicReport().summary();
 
@@ -128,12 +153,12 @@ class DynamicReportMapperTest {
 
 	@Test
 	void emptySectionsDoNotBecomeFindings() throws Exception {
-		// this run captured no clipboard writes, no sqlite/xml artefacts and no api monitor
+		// this run captured no clipboard writes and no sqlite/xml artefacts
 		ScanReport report = dynamicReport();
 
 		assertThat(report.findings()).noneMatch(f -> f.id().equals("dynamic.runtime.clipboard"));
 		assertThat(report.dynamicAnalysis().fileSystem()).isEmpty();
-		assertThat(report.dynamicAnalysis().apiMonitor()).isEmpty();
+		assertThat(report.dynamicAnalysis().logcatHighlights()).isEmpty();
 	}
 
 	@Test

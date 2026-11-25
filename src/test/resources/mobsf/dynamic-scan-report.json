@@ -1,1 +1,162 @@
-{"hash": "0336c0007f9e23412c8a131999232cc4", "emails": ["dm-devel@redhat.com"], "urls": ["file:///storage/emulated/0", "https://www.google.com/generate_204", "http://play.googleapis.com/generate_204", "file:///data/local/screen.png", "https://android.googlesource.com/toolchain/llvm-project", "data:8388608,", "http://www.google.com/gen_204", "https://csp.withgoogle.com/csp/gws/other", "file:///data/app/vmdl530682249.tmp", "https://source.android.com/security/selinux/device-policy#label_new_services_and_address_denials", "www.google.com", "http://connectivitycheck.gstatic.com/generate_204"], "domains": {"play.googleapis.com": {"bad": "no", "geolocation": {"ip": "172.217.112.4", "country_short": "US", "country_long": "United States of America", "region": "California", "city": "Mountain View", "latitude": "37.405991", "longitude": "-122.078514"}, "ofac": false}, "www.google.com": {"bad": "no", "geolocation": {"ip": "142.251.157.119", "country_short": "US", "country_long": "United States of America", "region": "California", "city": "Mountain View", "latitude": "37.405991", "longitude": "-122.078514"}, "ofac": false}, "csp.withgoogle.com": {"bad": "no", "geolocation": {"ip": "142.250.70.49", "country_short": "US", "country_long": "United States of America", "region": "California", "city": "Mountain View", "latitude": "37.405991", "longitude": "-122.078514"}, "ofac": false}, "source.android.com": {"bad": "no", "geolocation": {"ip": "192.178.173.138", "country_short": "US", "country_long": "United States of America", "region": "California", "city": "Mountain View", "latitude": "37.405991", "longitude": "-122.078514"}, "ofac": false}, "connectivitycheck.gstatic.com": {"bad": "no", "geolocation": {"ip": "142.251.150.120", "country_short": "US", "country_long": "United States of America", "region": "California", "city": "Mountain View", "latitude": "37.405991", "longitude": "-122.078514"}, "ofac": false}, "android.googlesource.com": {"bad": "no", "geolocation": {"ip": "192.178.211.82", "country_short": "US", "country_long": "United States of America", "region": "California", "city": "Mountain View", "latitude": "37.405991", "longitude": "-122.078514"}, "ofac": false}}, "clipboard": [], "xml": [], "sqlite": [], "others": [], "tls_tests": {"tls_misconfigured": false, "no_tls_pin_or_transparency": false, "pin_or_transparency_bypassed": false, "has_cleartext": true}, "screenshots": [], "activity_tester": {"act-1.png": ".HomeScreenActivity", "act-3.png": ".WebViewActivity", "act-2.png": ".MultipleWebViewsActivity", "act-8.png": ".RegisterUserActivity", "act-9.png": ".VerifyUserActivity", "act-5.png": ".ExtremLargeActivity", "act-4.png": ".SearchUsersActivity", "act-7.png": ".TouchGesturesActivity", "act-6.png": ".PaintCanvasActivity"}, "exported_activity_tester": {}, "droidmon": {}, "apimon": {}, "base64_strings": [], "trackers": {"detected_trackers": 0, "total_trackers": 432, "trackers": []}, "frida_logs": false, "runtime_dependencies": [], "package": "io.selendroid.testapp", "version": "v4.5.4", "title": "Dynamic Analysis"}
+{
+  "hash": "0336c0007f9e23412c8a131999232cc4",
+  "emails": [
+    "dm-devel@redhat.com"
+  ],
+  "urls": [
+    "file:///storage/emulated/0",
+    "https://www.google.com/generate_204",
+    "http://play.googleapis.com/generate_204",
+    "file:///data/local/screen.png",
+    "https://android.googlesource.com/toolchain/llvm-project",
+    "data:8388608,",
+    "http://www.google.com/gen_204",
+    "https://csp.withgoogle.com/csp/gws/other",
+    "file:///data/app/vmdl530682249.tmp",
+    "https://source.android.com/security/selinux/device-policy#label_new_services_and_address_denials",
+    "www.google.com",
+    "http://connectivitycheck.gstatic.com/generate_204"
+  ],
+  "domains": {
+    "play.googleapis.com": {
+      "bad": "no",
+      "geolocation": {
+        "ip": "172.217.112.4",
+        "country_short": "US",
+        "country_long": "United States of America",
+        "region": "California",
+        "city": "Mountain View",
+        "latitude": "37.405991",
+        "longitude": "-122.078514"
+      },
+      "ofac": false
+    },
+    "www.google.com": {
+      "bad": "no",
+      "geolocation": {
+        "ip": "142.251.157.119",
+        "country_short": "US",
+        "country_long": "United States of America",
+        "region": "California",
+        "city": "Mountain View",
+        "latitude": "37.405991",
+        "longitude": "-122.078514"
+      },
+      "ofac": false
+    },
+    "csp.withgoogle.com": {
+      "bad": "no",
+      "geolocation": {
+        "ip": "142.250.70.49",
+        "country_short": "US",
+        "country_long": "United States of America",
+        "region": "California",
+        "city": "Mountain View",
+        "latitude": "37.405991",
+        "longitude": "-122.078514"
+      },
+      "ofac": false
+    },
+    "source.android.com": {
+      "bad": "no",
+      "geolocation": {
+        "ip": "192.178.173.138",
+        "country_short": "US",
+        "country_long": "United States of America",
+        "region": "California",
+        "city": "Mountain View",
+        "latitude": "37.405991",
+        "longitude": "-122.078514"
+      },
+      "ofac": false
+    },
+    "connectivitycheck.gstatic.com": {
+      "bad": "no",
+      "geolocation": {
+        "ip": "142.251.150.120",
+        "country_short": "US",
+        "country_long": "United States of America",
+        "region": "California",
+        "city": "Mountain View",
+        "latitude": "37.405991",
+        "longitude": "-122.078514"
+      },
+      "ofac": false
+    },
+    "android.googlesource.com": {
+      "bad": "no",
+      "geolocation": {
+        "ip": "192.178.211.82",
+        "country_short": "US",
+        "country_long": "United States of America",
+        "region": "California",
+        "city": "Mountain View",
+        "latitude": "37.405991",
+        "longitude": "-122.078514"
+      },
+      "ofac": false
+    }
+  },
+  "clipboard": [],
+  "xml": [],
+  "sqlite": [],
+  "others": [],
+  "tls_tests": {
+    "tls_misconfigured": false,
+    "no_tls_pin_or_transparency": false,
+    "pin_or_transparency_bypassed": false,
+    "has_cleartext": true
+  },
+  "screenshots": [],
+  "activity_tester": {
+    "act-1.png": ".HomeScreenActivity",
+    "act-3.png": ".WebViewActivity",
+    "act-2.png": ".MultipleWebViewsActivity",
+    "act-8.png": ".RegisterUserActivity",
+    "act-9.png": ".VerifyUserActivity",
+    "act-5.png": ".ExtremLargeActivity",
+    "act-4.png": ".SearchUsersActivity",
+    "act-7.png": ".TouchGesturesActivity",
+    "act-6.png": ".PaintCanvasActivity"
+  },
+  "exported_activity_tester": {},
+  "droidmon": {},
+  "apimon": {
+    "Device Data": [
+      {
+        "name": "Device Data",
+        "class": "android.os.SystemProperties",
+        "method": "get",
+        "arguments": [
+          "debug.layout"
+        ],
+        "calledFrom": "android.sysprop.DisplayProperties.debug_layout(DisplayProperties.java:153)",
+        "icon": "fas fa-phone"
+      }
+    ],
+    "Crypto": [
+      {
+        "name": "Crypto",
+        "class": "javax.crypto.Cipher",
+        "method": "getInstance",
+        "arguments": [
+          "AES/ECB/PKCS5Padding"
+        ],
+        "result": "javax.crypto.Cipher@1a2b3c",
+        "calledFrom": "io.selendroid.testapp.HomeScreenActivity.onCreate(HomeScreenActivity.java:88)",
+        "icon": "fas fa-key"
+      }
+    ]
+  },
+  "base64_strings": [],
+  "trackers": {
+    "detected_trackers": 0,
+    "total_trackers": 432,
+    "trackers": []
+  },
+  "frida_logs": false,
+  "runtime_dependencies": [],
+  "package": "io.selendroid.testapp",
+  "version": "v4.5.4",
+  "title": "Dynamic Analysis"
+}

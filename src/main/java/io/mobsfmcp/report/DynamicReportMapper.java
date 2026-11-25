@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.Set;
 
 import io.mobsfmcp.report.model.Finding;
+import io.mobsfmcp.util.Json;
 import io.mobsfmcp.report.model.ScanReport;
 import tools.jackson.databind.JsonNode;
 
@@ -39,7 +40,7 @@ public class DynamicReportMapper {
 		addTlsFindings(report, findings);
 		addClipboardFindings(report, findings);
 
-		ScanReport.DynamicDetails details = new ScanReport.DynamicDetails(tlsTests(report), strings(report.path("apimon")),
+		ScanReport.DynamicDetails details = new ScanReport.DynamicDetails(tlsTests(report), apiMonitor(report),
 				strings(report.path("urls")), fileArtifacts(report), strings(report.path("droidmon")),
 				screenshots(report), strings(report.path("domains")));
 
@@ -155,6 +156,33 @@ public class DynamicReportMapper {
 					: value.isNumber() ? value.numberValue() : value.isTextual() ? value.asString() : value.toString());
 		});
 		return Map.copyOf(tls);
+	}
+
+	/**
+	 * Calls Frida's API monitor recorded, flattened out of MobSF's grouping.
+	 * <p>
+	 * MobSF returns {@code apimon} as an object keyed by category, each holding a list of
+	 * calls: {@code {"Device Data": [{class, method, arguments, result, calledFrom}, ...]}}.
+	 * Passing that through the generic string helper kept only the category names and threw
+	 * every captured call away, which went unnoticed until a run produced real hook output.
+	 * The return value is MobSF's {@code result}.
+	 */
+	private static List<ScanReport.ApiCall> apiMonitor(JsonNode report) {
+		List<ScanReport.ApiCall> calls = new ArrayList<>();
+		JsonNode apimon = report.path("apimon");
+		if (apimon.isArray()) {
+			apimon.forEach(call -> calls.add(apiCall(null, call)));
+			return List.copyOf(calls);
+		}
+		apimon.propertyStream()
+			.forEach(entry -> entry.getValue().forEach(call -> calls.add(apiCall(entry.getKey(), call))));
+		return List.copyOf(calls);
+	}
+
+	private static ScanReport.ApiCall apiCall(String category, JsonNode call) {
+		return new ScanReport.ApiCall(Json.firstNonBlank(category, Json.text(call, "name")),
+				Json.text(call, "class"), Json.text(call, "method"), Json.strings(call.path("arguments")),
+				Json.text(call, "result"), Json.text(call, "calledFrom"));
 	}
 
 	/**
