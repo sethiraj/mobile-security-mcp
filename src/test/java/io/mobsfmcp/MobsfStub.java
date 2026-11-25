@@ -97,8 +97,14 @@ public final class MobsfStub {
 
 	/** Stubs the dynamic analysis endpoints (device, Frida, dynamic report). */
 	public static void stubDynamicAnalysis(WireMockServer server, String hash) {
+		// 'apps' holds objects keyed in upper case, as a real MobSF 4.5.4 returns them.
 		server.stubFor(get(urlPathEqualTo("/api/v1/dynamic/get_apps")).willReturn(okJson("""
-				{"apps": ["jakhar.aseem.diva", "com.android.settings"], "identifier": "host.docker.internal:5555",
+				{"apps": [{"ICON_PATH": "abc-icon.png", "MD5": "82ab8b2193b3cfb1c737e3a786be363a",
+				           "APP_NAME": "diva", "VERSION_NAME": "1.0", "FILE_NAME": "diva.apk",
+				           "PACKAGE_NAME": "jakhar.aseem.diva", "DYNAMIC_REPORT_EXISTS": true},
+				          {"MD5": "", "APP_NAME": "Settings", "VERSION_NAME": "",
+				           "PACKAGE_NAME": "com.android.settings", "DYNAMIC_REPORT_EXISTS": false}],
+				 "identifier": "host.docker.internal:5555",
 				 "android_version": "11", "android_sdk": 30, "android_supported": 30, "proxy_port": 1337,
 				 "title": "MobSF Dynamic Analysis", "version": "v4.5.4"}""")));
 		server.stubFor(get(urlPathEqualTo("/api/v1/dynamic/get_apps")).withHeader("X-No-Device", equalTo("1"))

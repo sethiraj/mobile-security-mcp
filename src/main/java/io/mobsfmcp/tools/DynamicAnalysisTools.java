@@ -9,6 +9,7 @@ import java.util.Locale;
 import io.mobsfmcp.client.MobsfClient;
 import io.mobsfmcp.client.MobsfException;
 import io.mobsfmcp.config.MobsfProperties;
+import io.mobsfmcp.util.Json;
 import tools.jackson.databind.JsonNode;
 
 import org.springframework.ai.mcp.annotation.McpTool;
@@ -39,8 +40,20 @@ public class DynamicAnalysisTools {
 	 * analysis (MobSF 4.5.4 reports 30, i.e. Android 11)
 	 */
 	public record DeviceStatus(boolean deviceAvailable, String mobsfUrl, String identifier, String androidVersion,
-			Integer androidSdk, Integer maxSupportedSdk, List<String> installedPackages, String error,
+			Integer androidSdk, Integer maxSupportedSdk, List<InstalledApp> installedApps, String error,
 			List<String> nextSteps) {
+	}
+
+	/**
+	 * One app MobSF has on the device. MobSF returns these as objects keyed in upper case
+	 * ({@code PACKAGE_NAME}, {@code APP_NAME}, ...), so they are unpacked here rather than
+	 * handed to the caller as JSON embedded in a string.
+	 *
+	 * @param hash the MD5 to pass to start_dynamic, when this app was scanned by this MobSF
+	 * @param dynamicReportExists a dynamic report is already stored for this app
+	 */
+	public record InstalledApp(String packageName, String appName, String versionName, String hash,
+			boolean dynamicReportExists) {
 	}
 
 	public record DynamicRunResult(String hash, String status, String message, String nextStep) {
@@ -81,13 +94,19 @@ public class DynamicAnalysisTools {
 		Integer sdk = response.path("android_sdk").isNumber() ? response.path("android_sdk").asInt() : null;
 		Integer maxSdk = response.path("android_supported").isNumber() ? response.path("android_supported").asInt()
 				: null;
-		List<String> packages = new ArrayList<>();
+		List<InstalledApp> apps = new ArrayList<>();
 		for (JsonNode app : response.path("apps")) {
-			packages.add(app.isTextual() ? app.asString("") : app.path("package").asString(app.toString()));
+			if (app.isTextual()) {
+				apps.add(new InstalledApp(app.asString(""), null, null, null, false));
+				continue;
+			}
+			apps.add(new InstalledApp(Json.text(app, "PACKAGE_NAME"), Json.text(app, "APP_NAME"),
+					Json.text(app, "VERSION_NAME"), Json.text(app, "MD5"),
+					app.path("DYNAMIC_REPORT_EXISTS").asBoolean(false)));
 		}
 
 		if (identifier == null) {
-			return new DeviceStatus(false, properties.url(), null, null, null, maxSdk, List.copyOf(packages),
+			return new DeviceStatus(false, properties.url(), null, null, null, maxSdk, List.copyOf(apps),
 					"MobSF has no Android device attached (identifier is null).", setupSteps());
 		}
 		List<String> next = new ArrayList<>();
@@ -97,7 +116,7 @@ public class DynamicAnalysisTools {
 		}
 		next.add("If this device is new, run mobsfy_device once, then start_dynamic with an app hash.");
 		return new DeviceStatus(true, properties.url(), identifier,
-				response.path("android_version").asString(null), sdk, maxSdk, List.copyOf(packages), null,
+				response.path("android_version").asString(null), sdk, maxSdk, List.copyOf(apps), null,
 				List.copyOf(next));
 	}
 

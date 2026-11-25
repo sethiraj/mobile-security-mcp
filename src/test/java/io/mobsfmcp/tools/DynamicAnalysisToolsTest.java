@@ -60,8 +60,25 @@ class DynamicAnalysisToolsTest {
 		assertThat(status.identifier()).isEqualTo("host.docker.internal:5555");
 		assertThat(status.androidSdk()).isEqualTo(30);
 		assertThat(status.maxSupportedSdk()).isEqualTo(30);
-		assertThat(status.installedPackages()).contains("jakhar.aseem.diva");
 		assertThat(status.error()).isNull();
+	}
+
+	@Test
+	void installedAppsAreUnpackedRatherThanReturnedAsEmbeddedJson() {
+		// MobSF keys these in upper case, which an earlier version missed: it fell back to
+		// the node's toString(), so every entry arrived as JSON inside a string.
+		DynamicAnalysisTools.DeviceStatus status = tools().deviceStatus();
+
+		assertThat(status.installedApps()).extracting(DynamicAnalysisTools.InstalledApp::packageName)
+			.containsExactly("jakhar.aseem.diva", "com.android.settings");
+		assertThat(status.installedApps()).first().satisfies(app -> {
+			assertThat(app.appName()).isEqualTo("diva");
+			assertThat(app.versionName()).isEqualTo("1.0");
+			assertThat(app.hash()).isEqualTo("82ab8b2193b3cfb1c737e3a786be363a");
+			assertThat(app.dynamicReportExists()).isTrue();
+		});
+		// MobSF writes "" for an app it has no scan for; a hash of "" is not a hash
+		assertThat(status.installedApps().get(1).hash()).isNull();
 	}
 
 	@Test

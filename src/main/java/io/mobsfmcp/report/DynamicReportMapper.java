@@ -142,9 +142,18 @@ public class DynamicReportMapper {
 		}
 	}
 
+	/**
+	 * MobSF reports each TLS check as a boolean, so they are kept as booleans: rendering
+	 * them as the strings "true" and "false" makes every value truthy to a caller that
+	 * does not know to parse them.
+	 */
 	private static Map<String, Object> tlsTests(JsonNode report) {
 		Map<String, Object> tls = new LinkedHashMap<>();
-		report.path("tls_tests").propertyStream().forEach(entry -> tls.put(entry.getKey(), entry.getValue().toString()));
+		report.path("tls_tests").propertyStream().forEach(entry -> {
+			JsonNode value = entry.getValue();
+			tls.put(entry.getKey(), value.isBoolean() ? value.asBoolean()
+					: value.isNumber() ? value.numberValue() : value.isTextual() ? value.asString() : value.toString());
+		});
 		return Map.copyOf(tls);
 	}
 

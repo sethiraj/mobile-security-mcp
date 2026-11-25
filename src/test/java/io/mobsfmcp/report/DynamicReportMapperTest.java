@@ -119,7 +119,11 @@ class DynamicReportMapperTest {
 		// screenshots come from activity_tester, keyed by image, valued by activity
 		assertThat(details.screenshots()).anySatisfy(shot -> assertThat(shot).contains("act-1.png")
 			.contains("HomeScreenActivity"));
-		assertThat(details.tlsTests()).containsKeys("has_cleartext", "tls_misconfigured");
+		// Booleans stay booleans: as the strings "true"/"false" every value is truthy
+		assertThat(details.tlsTests()).containsEntry("has_cleartext", true)
+			.containsEntry("tls_misconfigured", false)
+			.containsEntry("no_tls_pin_or_transparency", false)
+			.containsEntry("pin_or_transparency_bypassed", false);
 	}
 
 	@Test
