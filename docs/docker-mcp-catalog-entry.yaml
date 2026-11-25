@@ -20,9 +20,9 @@ about:
     normalized JSON or SARIF 2.1.0. An independent MCP wrapper that talks to MobSF over its
     REST API; not affiliated with the MobSF project, which runs as its own container under
     its own licence (GPL-3.0).
-  icon: https://raw.githubusercontent.com/sure4docker/mobsf-mcp/main/assets/logo-256.png
+  icon: https://raw.githubusercontent.com/sethiraj/mobile-security-mcp/main/assets/logo-256.png
 source:
-  project: https://github.com/sure4docker/mobsf-mcp
+  project: https://github.com/sethiraj/mobile-security-mcp
 run:
   command:
     - --transport=stdio

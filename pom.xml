@@ -17,7 +17,7 @@
     <name>mobsf-mcp</name>
     <description>MCP server for MobSF (Mobile Security Framework) - stdio and Streamable HTTP</description>
 
-    <url>https://github.com/sure4docker/mobsf-mcp</url>
+    <url>https://github.com/sethiraj/mobile-security-mcp</url>
 
     <licenses>
         <license>
@@ -29,9 +29,9 @@
 
     <developers>
         <developer>
-            <id>sure4docker</id>
+            <id>sethiraj</id>
             <name>Surendran E</name>
-            <url>https://github.com/sure4docker</url>
+            <url>https://github.com/sethiraj</url>
             <roles>
                 <role>author</role>
             </roles>
@@ -39,8 +39,8 @@
     </developers>
 
     <scm>
-        <connection>scm:git:https://github.com/sure4docker/mobsf-mcp.git</connection>
-        <url>https://github.com/sure4docker/mobsf-mcp</url>
+        <connection>scm:git:https://github.com/sethiraj/mobile-security-mcp.git</connection>
+        <url>https://github.com/sethiraj/mobile-security-mcp</url>
     </scm>
 
     <properties>

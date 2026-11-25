@@ -15,7 +15,7 @@ RUN mvn -B -q package -DskipTests \
 
 FROM eclipse-temurin:21-jre-alpine
 ARG VERSION=dev
-ARG SOURCE_URL="https://github.com/sure4docker/mobsf-mcp"
+ARG SOURCE_URL="https://github.com/sethiraj/mobile-security-mcp"
 ARG REVISION=unknown
 LABEL org.opencontainers.image.title="mobsf-mcp" \
       org.opencontainers.image.description="MCP server for MobSF: upload, scan and report on Android/iOS apps over MCP" \

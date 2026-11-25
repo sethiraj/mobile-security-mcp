@@ -67,6 +67,6 @@ more features are planned, so this is a beta rather than 1.0.0.
   dynamic report mapping.
 - Further features, to be decided.
 
-[Unreleased]: https://github.com/sure4docker/mobsf-mcp/compare/v1.0.0-beta.2...HEAD
-[1.0.0-beta.2]: https://github.com/sure4docker/mobsf-mcp/releases/tag/v1.0.0-beta.2
-[1.0.0-beta.1]: https://github.com/sure4docker/mobsf-mcp/releases/tag/v1.0.0-beta.1
+[Unreleased]: https://github.com/sethiraj/mobile-security-mcp/compare/v1.0.0-beta.2...HEAD
+[1.0.0-beta.2]: https://github.com/sethiraj/mobile-security-mcp/releases/tag/v1.0.0-beta.2
+[1.0.0-beta.1]: https://github.com/sethiraj/mobile-security-mcp/releases/tag/v1.0.0-beta.1

@@ -5,15 +5,16 @@ registry. Nothing here runs by itself.
 
 ## Once, before the first release
 
-1. **Namespace: already set to `sure4docker`** (repository `sure4docker/mobsf-mcp`, image
-   `sure4docker/mobsf-mcp`). To move it somewhere else later:
-   ```bash
-   scripts/set-namespace.sh <new-owner> "Your Name or Company"   # rewrites the old owner
-   ```
-   That script updates the README, `server.json`, the Docker labels, the compose default, the
-   catalog entry, the Action defaults and the MIT copyright line. Check the MIT copyright in
-   `LICENSE`: it currently says "sure4docker", which you may want to be a personal or company
-   name instead.
+1. **Namespaces are set, and they differ.** The source lives on GitHub at
+   **sethiraj/mobile-security-mcp**; the image is published to Docker Hub as
+   **sure4docker/mobsf-mcp**. Every GitHub URL (the README, `CHANGELOG.md` links,
+   `server.json`, the `org.opencontainers.image.source` label, the catalog entry, the Action
+   `uses:` line) points at the repository, and every image reference (compose, `.env.example`,
+   `action.yml`, `server.json`'s OCI package identifier) points at Docker Hub. Keep that split
+   when you change either one: `scripts/set-namespace.sh` predates it and rewrites a single
+   owner everywhere, so do not run it again.
+
+   The MIT copyright in `LICENSE` is **Surendran E**.
 
 2. **Re-check the market.** This was never possible from the build machine, which cannot
    reach GitHub. Search GitHub, `registry.modelcontextprotocol.io`, the Docker MCP Catalog
@@ -27,7 +28,7 @@ registry. Nothing here runs by itself.
    *access token*, not your password: Docker Hub → Account settings → Personal access
    tokens, scope "Read & Write"). GHCR needs nothing extra.
 
-5. **Create the Docker Hub repository** `<user>/mobsf-mcp` and paste the README's summary
+5. **Create the Docker Hub repository** `sure4docker/mobsf-mcp` and paste the README's summary
    into its description.
 
 ## Each release

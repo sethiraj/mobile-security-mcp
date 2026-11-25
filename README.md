@@ -138,7 +138,7 @@ Reports are written to `./reports/<hash>/static.json`, with `static.raw.json` fo
 This repository is also a GitHub Action: it starts MobSF, scans an app, and fails the build on high-severity findings.
 
 ```yaml
-- uses: sure4docker/mobsf-mcp@v1.0.0-beta.1
+- uses: sethiraj/mobile-security-mcp@v1.0.0-beta.1
   id: mobsf
   with:
     app: app/build/outputs/apk/release/app-release.apk
@@ -194,7 +194,7 @@ All the actual security analysis is **MobSF's** work. This project only exposes 
   [InsecureBankv2](https://github.com/dineshshetty/Android-InsecureBankv2).
 
 ## Author
-**Surendran E** — [@sure4docker](https://github.com/sure4docker)
+**Surendran E** — [@sethiraj](https://github.com/sethiraj)
 
 ## License
 MIT, see [LICENSE](LICENSE) — copyright (c) 2026 Surendran E.

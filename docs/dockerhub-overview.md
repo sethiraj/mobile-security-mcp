@@ -42,8 +42,8 @@ themselves, and **Streamable HTTP** for a server several clients share.
 Everything at once, with MobSF included:
 
 ```bash
-curl -O https://raw.githubusercontent.com/sure4docker/mobsf-mcp/main/docker-compose.yml
-curl -o .env https://raw.githubusercontent.com/sure4docker/mobsf-mcp/main/.env.example
+curl -O https://raw.githubusercontent.com/sethiraj/mobile-security-mcp/main/docker-compose.yml
+curl -o .env https://raw.githubusercontent.com/sethiraj/mobile-security-mcp/main/.env.example
 # edit .env: set MOBSF_API_KEY and MCP_AUTH_TOKEN
 docker compose up -d
 ```
@@ -86,4 +86,4 @@ As a stdio server launched by your MCP client:
   the port on loopback is recommended.
 - Images are built for `linux/amd64` and `linux/arm64` and signed with cosign.
 - MIT licensed. Source, full tool list and documentation:
-  https://github.com/sure4docker/mobsf-mcp
+  https://github.com/sethiraj/mobile-security-mcp
