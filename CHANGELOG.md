@@ -18,6 +18,16 @@ All notable changes to this project are documented here. The format follows
 - Missing values from MobSF (empty strings, JSON nulls and absent fields alike) are normalized to `null`, so agents can tell "not provided" from a real value and apps with no package name are never grouped together.
 - `scan_app` fails with instructions when MobSF runs in async mode (`MOBSF_ASYNC_ANALYSIS=1`), which this server does not support; compose pins it to `0`.
 
+### Fixed
+- `get_logcat` works at all. MobSF answers `POST /api/v1/android/logcat` with `text/event-stream`, not JSON, so every call failed with "no suitable HttpMessageConverter found". It also runs `adb logcat` without `-d`, so the response replays the whole ring buffer and then tails the device forever. The call now drains the stream under a deadline, decodes MobSF's events, keeps the newest `maxLines` (keeping the first lines read would return the oldest log), and reports `totalLines`, `truncated` and `deadlineReached` instead of implying it read everything.
+- A passed TLS check is no longer titled with the problem it does not have. MobSF names each check after what it looks for, so `severity: secure` under "TLS is misconfigured" read as a finding to anything summarizing the report; titles now follow the outcome.
+- `device_status` unpacks the device's app list instead of returning MobSF's JSON embedded in strings. MobSF keys these in upper case (`PACKAGE_NAME`, `MD5`, ...), the old lookup always missed, and callers had to parse each entry a second time. Each app now carries its package, name, version, the MD5 `start_dynamic` needs, and whether a dynamic report exists.
+- `dynamicAnalysis.tlsTests` keeps MobSF's booleans as booleans. They were rendered with `toString()`, and the string `"false"` is truthy in most languages, so a caller reading the field directly would have inverted every check.
+- `frida_instrument` and `mobsfy_device` no longer present MobSF's success as their own. MobSF answers `ok` whether or not Frida attached, and logs "MobSFying Completed!" even when a step inside it failed; `frida_logs` turns MobSF's bare "Data does not exist." into the causes worth checking.
+
+### Documented
+- Why Frida can silently do nothing: MobSF gates the frida-server download behind a reachability probe of google.com and baidu.com, so on a network that blocks those but allows GitHub it never attempts the download that would have worked, never pushes `/system/fd_server`, and reports success regardless. `docs/dynamic-analysis-setup.md` has the root cause, the two commands that confirm it, and the workaround.
+
 ## [1.0.0-beta.2] - 2026-10-12
 
 ### Added

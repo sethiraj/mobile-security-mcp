@@ -19,10 +19,17 @@ An MCP ([Model Context Protocol](https://modelcontextprotocol.io)) server for [M
 > report MobSF bugs to [the MobSF project](https://github.com/MobSF/Mobile-Security-Framework-MobSF/issues)
 > and anything about this server here.
 
-> Status: **1.0.0-beta.2 — beta.** Everything is now verified end to end against the official
-> MobSF image: static analysis, JSON and SARIF reports, the app index, version comparison,
-> suppression, retention, the hardened HTTP mode — and, as of this release, **dynamic analysis
-> on a real Android emulator**. See [MILESTONES.md](MILESTONES.md) and [CHANGELOG.md](CHANGELOG.md).
+> Status: **1.0.0-beta.2 — beta.** Verified end to end against the official MobSF image:
+> static analysis, JSON and SARIF reports, the app index, version comparison, suppression,
+> retention, the hardened HTTP mode, and **dynamic analysis on a real Android emulator** —
+> activity testing, screenshots, observed traffic, TLS tests and logcat.
+>
+> **Not yet verified: the Frida tools.** `frida_instrument`, `frida_api_monitor` and
+> `frida_logs` are built against MobSF 4.5.4's API but have never run against live Frida
+> output, because MobSF failed to install its frida-server on the emulator used here. The
+> cause and the workaround are in
+> [docs/dynamic-analysis-setup.md](docs/dynamic-analysis-setup.md). See
+> [MILESTONES.md](MILESTONES.md) and [CHANGELOG.md](CHANGELOG.md).
 >
 > Only analyze apps you are authorized to test.
 
@@ -138,7 +145,7 @@ Reports are written to `./reports/<hash>/static.json`, with `static.raw.json` fo
 This repository is also a GitHub Action: it starts MobSF, scans an app, and fails the build on high-severity findings.
 
 ```yaml
-- uses: sethiraj/mobile-security-mcp@v1.0.0-beta.1
+- uses: sethiraj/mobile-security-mcp@v1.0.0-beta.2
   id: mobsf
   with:
     app: app/build/outputs/apk/release/app-release.apk

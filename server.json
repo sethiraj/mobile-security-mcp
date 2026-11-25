@@ -2,7 +2,7 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-07-09/server.schema.json",
   "name": "io.github.sethiraj/mobile-security-mcp",
   "description": "Scan Android and iOS apps with MobSF: upload, static analysis, dynamic analysis on a device, and findings as normalized JSON or SARIF. Independent wrapper, not affiliated with the MobSF project.",
-  "version": "1.0.0-beta.1",
+  "version": "1.0.0-beta.2",
   "repository": {
     "url": "https://github.com/sethiraj/mobile-security-mcp",
     "source": "github"
@@ -12,7 +12,7 @@
       "registryType": "oci",
       "registryBaseUrl": "https://docker.io",
       "identifier": "sure4docker/mobsf-mcp",
-      "version": "1.0.0-beta.1",
+      "version": "1.0.0-beta.2",
       "transport": {
         "type": "stdio"
       },
