@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>APK security chat</title>
+  <link rel="stylesheet" th:href="@{/app.css}">
+</head>
+<body>
+
+<header class="bar">
+  <div class="bar-in">
+    <div class="mark" aria-hidden="true"></div>
+    <div class="titles">
+      <h1>APK security chat</h1>
+      <p>MobSF analysis and Appium, driven by one conversation</p>
+    </div>
+    <span class="device" th:text="'device: ' + ${device}">device</span>
+  </div>
+</header>
+
+<main>
+  <section class="thread" th:if="${!empty}">
+    <article th:each="turn : ${turns}"
+             th:classappend="${turn.role == 'user'} ? 'me' : (${turn.role == 'error'} ? 'err' : 'bot')"
+             class="turn">
+      <span class="who"
+            th:text="${turn.role == 'user'} ? 'You' : (${turn.role == 'error'} ? 'Failed' : 'Assistant')">Who</span>
+      <div class="body" th:text="${turn.text}">message</div>
+    </article>
+  </section>
+
+  <section class="intro" th:if="${empty}">
+    <h2>Ask it to test an app</h2>
+    <p>
+      The assistant can scan an app with MobSF, run it on the connected emulator, drive the
+      screens with Appium, and report what the app does at runtime. Try one of these:
+    </p>
+    <form method="post" th:action="@{/ask}" th:each="s : ${suggestions}" class="suggest">
+      <input type="hidden" name="message" th:value="${s}">
+      <button type="submit" th:text="${s}">suggestion</button>
+    </form>
+  </section>
+</main>
+
+<form class="composer" method="post" th:action="@{/ask}">
+  <div class="composer-in">
+    <input name="message" autocomplete="off" autofocus
+           placeholder="Ask about an app, a scan, or what to test next…">
+    <button type="submit" class="send">Send</button>
+  </div>
+</form>
+
+<form method="post" th:action="@{/reset}" class="reset" th:if="${!empty}">
+  <button type="submit">Clear conversation</button>
+</form>
+
+</body>
+</html>

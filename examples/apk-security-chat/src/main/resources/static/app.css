@@ -1,0 +1,195 @@
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --line: #e2e6ec;
+  --ink: #15202b;
+  --muted: #5d6b7a;
+  --accent: #1b5e9c;
+  --accent-soft: #eaf2fb;
+  --danger: #9b2c2c;
+  --danger-soft: #fdeaea;
+  --radius: 10px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 400 16px/1.6 "Segoe UI", system-ui, -apple-system, Helvetica, Arial, sans-serif;
+  padding-bottom: 140px;
+}
+
+.bar {
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.bar-in {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.mark {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  flex: none;
+  background: var(--accent);
+  position: relative;
+}
+
+.mark::after {
+  content: "";
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  top: 15px;
+  height: 2px;
+  background: #7ef2c2;
+}
+
+.titles { flex: 1; }
+.titles h1 { margin: 0; font-size: 18px; font-weight: 600; }
+.titles p { margin: 2px 0 0; font-size: 13px; color: var(--muted); }
+
+.device {
+  font: 500 12px/1 ui-monospace, Consolas, monospace;
+  color: var(--muted);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 6px 12px;
+  white-space: nowrap;
+}
+
+main { max-width: 860px; margin: 0 auto; padding: 24px 20px 0; }
+
+.intro {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 24px;
+}
+
+.intro h2 { margin: 0 0 8px; font-size: 17px; font-weight: 600; }
+.intro p { margin: 0 0 18px; color: var(--muted); font-size: 15px; }
+
+.suggest { margin: 0 0 8px; }
+
+.suggest button {
+  width: 100%;
+  text-align: left;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid #cfe0f3;
+  border-radius: var(--radius);
+  padding: 11px 14px;
+  font: inherit;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.suggest button:hover { background: #e0ecf9; }
+
+.thread { display: flex; flex-direction: column; gap: 14px; }
+
+.turn {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  max-width: 88%;
+}
+
+.turn.me {
+  align-self: flex-end;
+  background: var(--accent-soft);
+  border-color: #cfe0f3;
+}
+
+.turn.err {
+  background: var(--danger-soft);
+  border-color: #f2c9c9;
+  color: var(--danger);
+}
+
+.who {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.turn.err .who { color: var(--danger); }
+
+.body { white-space: pre-wrap; word-wrap: break-word; }
+
+.composer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+  padding: 14px 20px;
+}
+
+.composer-in {
+  max-width: 860px;
+  margin: 0 auto;
+  display: flex;
+  gap: 10px;
+}
+
+.composer input {
+  flex: 1;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  font: inherit;
+  background: var(--bg);
+}
+
+.composer input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+  background: var(--surface);
+}
+
+.send {
+  background: var(--accent);
+  color: #fff;
+  border: 0;
+  border-radius: var(--radius);
+  padding: 12px 22px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.send:hover { background: #164e84; }
+
+.reset { max-width: 860px; margin: 16px auto 0; padding: 0 20px; }
+
+.reset button {
+  background: none;
+  border: 0;
+  color: var(--muted);
+  font: inherit;
+  font-size: 13px;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+}
