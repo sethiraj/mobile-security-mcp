@@ -40,7 +40,7 @@ that is whatever you named it in Foundry.
 ```powershell
 $env:AZURE_AI_BASE_URL  = "https://<your-resource>.services.ai.azure.com/openai/v1"
 $env:AZURE_AI_API_KEY   = "<your key>"
-$env:AZURE_AI_DEPLOYMENT= "claude-sonnet-4-5"
+$env:AZURE_AI_DEPLOYMENT= "claude-sonnet-5"
 $env:MCP_AUTH_TOKEN     = "<the same value as MCP_AUTH_TOKEN in ../../.env>"
 $env:APPIUM_DEVICE      = "emulator-5554"
 ```

@@ -9,13 +9,13 @@ spring:
     # Azure AI Foundry serves the OpenAI API, so the OpenAI client reaches it with nothing
     # but a different base URL. AZURE_AI_BASE_URL is the resource endpoint up to and
     # including /openai/v1; the deployment name goes in `model`, and for an Anthropic
-    # deployment that is the name you gave it in Foundry, e.g. claude-sonnet-4-5.
+    # deployment that is the name you gave it in Foundry, e.g. claude-sonnet-5.
     openai:
       api-key: ${AZURE_AI_API_KEY}
       base-url: ${AZURE_AI_BASE_URL}
       chat:
         options:
-          model: ${AZURE_AI_DEPLOYMENT:claude-sonnet-4-5}
+          model: ${AZURE_AI_DEPLOYMENT:claude-sonnet-5}
           temperature: 0.2
 
     mcp:
